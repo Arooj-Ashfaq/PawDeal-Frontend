@@ -5,7 +5,7 @@ import { useMarketplace } from '@/contexts/MarketplaceContext';
 import { 
   LayoutDashboard, ShoppingBag, Heart, MessageSquare, 
   Settings, User, PlusCircle, TrendingUp, 
-  BarChart3, PieChart, ArrowUpRight, ArrowDownRight,
+  BarChart3, ArrowUpRight, ArrowDownRight,
   Package, DollarSign, Users, Eye, FileText, Download
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
   LineChart, Line, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import { toast } from 'sonner';
 
@@ -78,8 +78,8 @@ const Dashboard: React.FC = () => {
             <CardContent className="p-6">
                <div className="flex justify-between items-start mb-4">
                   <div className="p-3 bg-foam rounded-xl">{stat.icon}</div>
-                  <Badge variant="secondary" className={`bg-transparent ${stat.up ? "text-success" : "text-reef"}`}>
-                    {stat.up ? <ArrowUpRight className="w-3 h-3 mr-1" /> : <ArrowDownRight className="w-3 h-3 mr-1" />}
+                  <Badge variant="secondary" className={`bg-transparent ${stat.up ? "text-success" : "text-reef"}`}>       
+                    {stat.up ? <ArrowUpRight className="w-3 h-3 mr-1" /> : <ArrowDownRight className="w-3 h-3 mr-1" />}    
                     {stat.change}
                   </Badge>
                </div>
@@ -105,13 +105,13 @@ const Dashboard: React.FC = () => {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={performanceData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />        
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#0A2540', border: 'none', borderRadius: '12px', color: '#fff' }}
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#0A2540', border: 'none', borderRadius: '12px', color: '#fff' }}       
                   itemStyle={{ color: '#fff' }}
                 />
-                <Line type="monotone" dataKey="views" stroke="#00A8CC" strokeWidth={4} dot={false} activeDot={{ r: 8 }} />
+                <Line type="monotone" dataKey="views" stroke="#00A8CC" strokeWidth={4} dot={false} activeDot={{ r: 8 }} /> 
                 <Line type="monotone" dataKey="messages" stroke="#FF6B6B" strokeWidth={4} dot={false} activeDot={{ r: 8 }} />
               </LineChart>
             </ResponsiveContainer>
@@ -166,7 +166,7 @@ const Dashboard: React.FC = () => {
       </div>
       <div className="grid gap-6">
         {pets.slice(0, 5).map((pet, i) => (
-          <Card key={i} className="border-border shadow-sm rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
+          <Card key={i} className="border-border shadow-sm rounded-2xl overflow-hidden hover:shadow-md transition-shadow"> 
             <CardContent className="p-4 flex items-center gap-6">
               <div className="w-24 h-24 rounded-xl overflow-hidden bg-muted shrink-0">
                 <img src={`https://images.unsplash.com/photo-${pet.id}?auto=format&fit=crop&w=200&q=80`} className="w-full h-full object-cover" alt={pet.name} />
@@ -220,7 +220,7 @@ const Dashboard: React.FC = () => {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">Account Completeness</p>
+                  <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">Account Completeness</p>    
                   <Progress value={85} className="h-1.5 bg-white/10 [&>div]:bg-reef" />
                 </div>
               </div>
@@ -228,18 +228,18 @@ const Dashboard: React.FC = () => {
                 <nav className="space-y-1">
                   {sidebarLinks.map((link) => (
                     link.path ? (
-                      <Link 
-                        key={link.view} 
+                      <Link
+                        key={link.view}
                         to={link.path}
                         className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-muted-foreground hover:bg-foam hover:text-reef transition-all"
                       >
                         {link.icon} {link.name}
                       </Link>
                     ) : (
-                      <button 
-                        key={link.view} 
+                      <button
+                        key={link.view}
                         onClick={() => navigate(`/dashboard/${link.view}`)}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeView === link.view ? "bg-ocean text-white shadow-lg" : "text-muted-foreground hover:bg-foam hover:text-reef"}`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeView === link.view ? "bg-ocean text-white shadow-lg" : "text-muted-foreground hover:bg-foam hover:text-reef"}`}      
                       >
                         {link.icon} {link.name}
                       </button>
@@ -249,8 +249,8 @@ const Dashboard: React.FC = () => {
               </CardContent>
             </Card>
 
-            <Card className="border-none bg-reef text-white p-8 rounded-3xl space-y-6 shadow-xl relative overflow-hidden">
-               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+            <Card className="border-none bg-reef text-white p-8 rounded-3xl space-y-6 shadow-xl relative overflow-hidden"> 
+               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>    
                <h3 className="text-xl font-extrabold leading-tight">Pro Plan Features</h3>
                <p className="text-white/80 text-xs">Unlock advanced analytics and premium seller tools.</p>
                <Button className="w-full bg-white text-reef hover:bg-white/90 font-extrabold h-10 rounded-xl" type="button" onClick={() => {}}>Upgrade Now</Button>
@@ -261,8 +261,8 @@ const Dashboard: React.FC = () => {
           <main className="flex-1 space-y-8">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl border border-border shadow-sm">
                <div>
-                  <h1 className="text-3xl font-extrabold text-ocean capitalize">{activeView.replace('-', ' ')}</h1>
-                  <p className="text-muted-foreground font-medium">Welcome back, {user.name}! Here's what's happening.</p>
+                  <h1 className="text-3xl font-extrabold text-ocean capitalize">{activeView.replace('-', ' ')}</h1>        
+                  <p className="text-muted-foreground font-medium">Welcome back, {user.name}! Here's what's happening.</p> 
                </div>
                <div className="flex gap-3 w-full md:w-auto">
                  <Button type="button" onClick={() => {}} variant="outline" className="h-12 border-border text-ocean font-bold rounded-xl flex-1 md:flex-none">
@@ -288,28 +288,27 @@ const Dashboard: React.FC = () => {
                               <th className="px-6 py-4 text-xs font-extrabold text-muted-foreground uppercase tracking-widest">Date</th>
                               <th className="px-6 py-4 text-xs font-extrabold text-muted-foreground uppercase tracking-widest">Price</th>
                               <th className="px-6 py-4 text-xs font-extrabold text-muted-foreground uppercase tracking-widest">Status</th>
-                           </tr>
+                            </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
                            {[1,2,3].map(i => (
                               <tr key={i} className="hover:bg-foam/50 transition-colors">
                                  <td className="px-6 py-4 font-bold text-ocean">#ORD-{1024 + i}</td>
-                                 <td className="px-6 py-4 text-sm text-muted-foreground">Premium Pet Supply {i}</td>
+                                 <td className="px-6 py-4 text-sm text-muted-foreground">Premium Pet Supply {i}</td>       
                                  <td className="px-6 py-4 text-sm text-muted-foreground">Mar {12-i}, 2026</td>
                                  <td className="px-6 py-4 font-bold text-ocean">${45 + i*10}.99</td>
                                  <td className="px-6 py-4">
                                     <Badge className="bg-success/10 text-success border-none">Delivered</Badge>
-                                 </td>
-                              </tr>
+                                  </td>
+                               </tr>
                            ))}
                         </tbody>
-                     </table>
+                      </table>
                   </div>
                </div>
             )}
-            {/* ... other views would be similar ... */}
             {['favorites', 'settings', 'seller', 'analytics'].includes(activeView) && (
-              <div className="py-20 text-center bg-white rounded-3xl border border-border border-dashed space-y-4">
+              <div className="py-20 text-center bg-white rounded-3xl border border-border border-dashed space-y-4">        
                 <BarChart3 className="w-16 h-16 text-muted-foreground mx-auto opacity-10" />
                 <h3 className="text-2xl font-bold text-ocean">{activeView.charAt(0).toUpperCase() + activeView.slice(1)} view is coming soon</h3>
                 <p className="text-muted-foreground max-w-sm mx-auto">We're working hard to bring this feature to you. Stay tuned!</p>
@@ -324,5 +323,3 @@ const Dashboard: React.FC = () => {
 };
 
 export default Dashboard;
-
-const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');

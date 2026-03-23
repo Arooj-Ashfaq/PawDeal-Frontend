@@ -6,7 +6,7 @@ import {
   Menu, X, Search, ShoppingCart, User, LogOut, 
   Dog, Cat, Fish, Bird, Rabbit, Heart, MessageSquare, 
   LayoutDashboard, BookOpen, Users, HelpCircle, Phone, Info,
-  ChevronDown, Bell
+  ChevronDown, Bell, Package
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,7 +62,7 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <Link to="/" className="flex items-center gap-2">
               <span className="text-2xl font-bold tracking-tighter">PawDeal</span>
             </Link>
-            
+
             <form onSubmit={handleSearch} className="hidden md:flex relative w-64 lg:w-96">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-white/60" />
               <Input
@@ -101,7 +101,7 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               <div className="flex items-center gap-2">
                 <Link to="/messages" className="hidden sm:flex relative p-2 hover:bg-white/10 rounded-full transition-colors">
                   <MessageSquare className="w-5 h-5" />
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-reef rounded-full border border-ocean"></span>
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-reef rounded-full border border-ocean"></span>    
                 </Link>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -117,24 +117,56 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
+                    
                     <DropdownMenuItem asChild>
                       <Link to="/dashboard">
                         <LayoutDashboard className="mr-2 h-4 w-4" />
                         <span>Dashboard</span>
                       </Link>
                     </DropdownMenuItem>
+                    
+                    <DropdownMenuItem asChild>
+                      <Link to="/pets/create">
+                        <Dog className="mr-2 h-4 w-4" />
+                        <span>Add New Pet</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    
+                    <DropdownMenuItem asChild>
+                      <Link to="/products/create">
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        <span>Add New Product</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    
+                    <DropdownMenuItem asChild>
+                      <Link to="/dashboard/listings">
+                        <Package className="mr-2 h-4 w-4" />
+                        <span>My Listings</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    
                     <DropdownMenuItem asChild>
                       <Link to="/favorites">
                         <Heart className="mr-2 h-4 w-4" />
                         <span>Favorites</span>
                       </Link>
                     </DropdownMenuItem>
+                    
+                    <DropdownMenuItem asChild>
+                      <Link to="/messages">
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        <span>Messages</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    
                     <DropdownMenuItem asChild>
                       <Link to="/dashboard/settings">
                         <User className="mr-2 h-4 w-4" />
                         <span>Settings</span>
                       </Link>
                     </DropdownMenuItem>
+                    
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={signOut}>
                       <LogOut className="mr-2 h-4 w-4" />
@@ -214,7 +246,7 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <li><Link to="/contact" className="hover:text-reef transition-colors">Contact Us</Link></li>
                 <li><Link to="/faq" className="hover:text-reef transition-colors">FAQ</Link></li>
                 <li><Link to="/pricing" className="hover:text-reef transition-colors">Pricing</Link></li>
-                <li><Link to="/sellers" className="hover:text-reef transition-colors">Sellers Directory</Link></li>
+                <li><Link to="/sellers" className="hover:text-reef transition-colors">Sellers Directory</Link></li>        
               </ul>
             </div>
             <div>
@@ -224,7 +256,7 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <li><Link to="/pets/cats" className="hover:text-reef transition-colors">Cats</Link></li>
                 <li><Link to="/products" className="hover:text-reef transition-colors">Products</Link></li>
                 <li><Link to="/guides" className="hover:text-reef transition-colors">Care Guides</Link></li>
-                <li><Link to="/success-stories" className="hover:text-reef transition-colors">Success Stories</Link></li>
+                <li><Link to="/success-stories" className="hover:text-reef transition-colors">Success Stories</Link></li>  
               </ul>
             </div>
             <div>

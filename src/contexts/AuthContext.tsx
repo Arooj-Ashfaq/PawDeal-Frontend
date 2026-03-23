@@ -1,41 +1,38 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
+import { auth } from '../services/api';
 
 export interface User {
   id: string;
   email: string;
   name: string;
   avatar?: string;
-  role: 'buyer' | 'seller' | 'both';
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, name: string, role: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, firstName: string, lastName: string, phone: string) => Promise<{ error: Error | null }>;
   signOut: () => void;
   updateProfile: (updates: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const MOCK_USERS = [
-  { id: 'u-buyer', email: 'buyer@test.com', name: 'Test Buyer', password: 'password123', role: 'buyer' as const },
-  { id: 'u-seller', email: 'seller@test.com', name: 'Test Seller', password: 'password123', role: 'seller' as const },
-  { id: 'u-both', email: 'both@test.com', name: 'Test User Both', password: 'password123', role: 'both' as const },
-];
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const token = localStorage.getItem('pawdeal_token');
     const storedUser = localStorage.getItem('pawdeal_user');
-    if (storedUser) {
+    
+    if (token && storedUser) {
       try {
         setUser(JSON.parse(storedUser));
       } catch (e) {
+        localStorage.removeItem('pawdeal_token');
         localStorage.removeItem('pawdeal_user');
       }
     }
@@ -43,46 +40,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    // Simulate network delay
-    await new Promise(r => setTimeout(r, 500));
-    
-    // Check in local storage registered users first
-    const registeredUsers = JSON.parse(localStorage.getItem('pawdeal_registered_users') || '[]');
-    const allUsers = [...MOCK_USERS, ...registeredUsers];
-    
-    const found = allUsers.find(u => u.email === email && u.password === password);
-    
-    if (found) {
-      const { password: _, ...userWithoutPass } = found;
-      setUser(userWithoutPass);
-      localStorage.setItem('pawdeal_user', JSON.stringify(userWithoutPass));
+    try {
+      const response = await auth.login(email, password);
+      
+      localStorage.setItem('pawdeal_token', response.token);
+      localStorage.setItem('pawdeal_user', JSON.stringify(response.user));
+      setUser(response.user);
+      toast.success('Logged in successfully!');
       return { error: null };
-    } else {
-      return { error: new Error('Invalid email or password') };
+    } catch (error: any) {
+      console.error('Login error:', error);
+      toast.error(error.message || 'Login failed');
+      return { error: error };
     }
   };
 
-  const signUp = async (email: string, password: string, name: string, role: string) => {
-    await new Promise(r => setTimeout(r, 500));
-    const registeredUsers = JSON.parse(localStorage.getItem('pawdeal_registered_users') || '[]');
-    
-    if (registeredUsers.find((u: any) => u.email === email) || MOCK_USERS.find(u => u.email === email)) {
-      return { error: new Error('Email already exists') };
+  const signUp = async (email: string, password: string, firstName: string, lastName: string, phone: string) => {
+    try {
+      const response = await auth.register({ 
+        email, 
+        password, 
+        first_name: firstName,
+        last_name: lastName,
+        phone: phone || null
+      });
+      
+      localStorage.setItem('pawdeal_token', response.token);
+      localStorage.setItem('pawdeal_user', JSON.stringify(response.user));
+      setUser(response.user);
+      toast.success('Account created successfully!');
+      return { error: null };
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      toast.error(error.message || 'Registration failed');
+      return { error: error };
     }
-    
-    const newUser = { id: `u-${Date.now()}`, email, password, name, role: role as any };
-    registeredUsers.push(newUser);
-    localStorage.setItem('pawdeal_registered_users', JSON.stringify(registeredUsers));
-    
-    const { password: _, ...userWithoutPass } = newUser;
-    setUser(userWithoutPass);
-    localStorage.setItem('pawdeal_user', JSON.stringify(userWithoutPass));
-    
-    return { error: null };
   };
 
   const signOut = () => {
     setUser(null);
+    localStorage.removeItem('pawdeal_token');
     localStorage.removeItem('pawdeal_user');
     toast.success('Logged out successfully');
   };
