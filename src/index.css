@@ -1,0 +1,115 @@
+/* stylelint-disable */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here.
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+    --background: 210 20% 98%;
+    --foreground: 210 29% 24%;
+    --card: 0 0% 100%;
+    --card-foreground: 210 29% 24%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 29% 24%;
+    --primary: 0 100% 71%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 191 100% 40%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 210 20% 95%;
+    --muted-foreground: 210 29% 40%;
+    --accent: 48 100% 62%;
+    --accent-foreground: 210 29% 24%;
+    --destructive: 0 84.2% 60.2%;
+    --border: 210 20% 90%;
+    --input: 210 20% 90%;
+    --ring: 191 100% 40%;
+    --ocean: 210 73% 15%;
+    --tropical: 191 100% 40%;
+    --reef: 0 100% 71%;
+    --sea: 210 29% 24%;
+    --sunlight: 48 100% 62%;
+    --foam: 210 20% 98%;
+    --success: 145 63% 42%;
+    --chart-1: 191 100% 40%;
+    --chart-2: 0 100% 71%;
+    --chart-3: 145 63% 42%;
+    --chart-4: 48 100% 62%;
+    --chart-5: 210 73% 15%;
+    --sidebar-background: 210 73% 15%;
+    --sidebar-foreground: 210 20% 98%;
+    --sidebar-primary: 0 100% 71%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 191 100% 40%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 210 73% 25%;
+    --sidebar-ring: 191 100% 40%;
+  }
+
+  .dark {
+    --background: 210 73% 10%;
+    --foreground: 210 20% 98%;
+    --card: 210 73% 12%;
+    --card-foreground: 210 20% 98%;
+    --popover: 210 73% 12%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 0 100% 71%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 191 100% 40%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 210 73% 20%;
+    --muted-foreground: 210 20% 70%;
+    --accent: 48 100% 62%;
+    --accent-foreground: 210 73% 10%;
+    --destructive: 0 62.8% 30.6%;
+    --border: 210 73% 20%;
+    --input: 210 73% 20%;
+    --ring: 191 100% 40%;
+    --ocean: 210 73% 5%;
+    --success: 145 63% 42%;
+    --sidebar-background: 210 73% 5%;
+    --sidebar-foreground: 210 20% 98%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+
+@layer utilities {
+  /* Toast Styles to match Ocean Trust Palette */
+  [data-sonner-toast] {
+    @apply rounded-xl border shadow-2xl font-bold;
+  }
+  [data-sonner-toast][data-type='success'] {
+    background-color: hsl(var(--success));
+    color: hsl(var(--foam));
+    border: none;
+  }
+  [data-sonner-toast][data-type='error'] {
+    background-color: hsl(var(--reef));
+    color: hsl(var(--foam));
+    border: none;
+  }
+  [data-sonner-toast][data-type='warning'] {
+    background-color: hsl(var(--sunlight));
+    color: hsl(var(--ocean));
+    border: none;
+  }
+  [data-sonner-toast][data-type='info'] {
+    background-color: hsl(var(--tropical));
+    color: hsl(var(--foam));
+    border: none;
+  }
+}
