@@ -1,42 +1,124 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCart } from '@/contexts/CartContext';
-import { useMarketplace } from '@/contexts/MarketplaceContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Heart, MapPin, ShoppingBag, ArrowRight, Star } from 'lucide-react';
+import { Heart, MapPin, ShoppingBag, ArrowRight, Star, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 export const PetCard: React.FC<{ pet: any }> = ({ pet }) => {
   const { user } = useAuth();
-  const { favorites, toggleFavorite } = useMarketplace();
+  const [isFavorite, setIsFavorite] = useState(false);
   const [loading, setLoading] = useState(false);
-  
-  const isFavorite = favorites.includes(pet.id);
+  const [isAdded, setIsAdded] = useState(false);
+
+  useEffect(() => {
+    const checkFavorite = async () => {
+      if (!user || !pet.id) return;
+      try {
+        const token = localStorage.getItem('pawdeal_token');
+        if (!token) return;
+        const response = await fetch(`http://localhost:5000/api/favorites/check/pet/${pet.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        setIsFavorite(data.is_favorited === true);
+      } catch (error) {
+        console.error('Check favorite error:', error);
+      }
+    };
+    checkFavorite();
+  }, [user, pet.id]);
 
   const handleToggleFav = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
     if (!user) {
       toast.error('Please login to save favorites');
       return;
     }
-
     setLoading(true);
-    await toggleFavorite(pet.id);
-    setLoading(false);
+    try {
+      const token = localStorage.getItem('pawdeal_token');
+      if (!token) throw new Error('No token');
+      if (isFavorite) {
+        await fetch(`http://localhost:5000/api/favorites/pet/${pet.id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setIsFavorite(false);
+        toast.success('Removed from favorites');
+      } else {
+        await fetch(`http://localhost:5000/api/favorites/pet/${pet.id}`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setIsFavorite(true);
+        toast.success('Added to favorites');
+      }
+    } catch (error: any) {
+      console.error('Toggle favorite error:', error);
+      toast.error(error.message || 'Failed to update favorites');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) {
+      toast.error('Please login to add to cart');
+      return;
+    }
+    
+    const priceNum = typeof pet.price === 'number' ? pet.price : parseFloat(pet.price) || 0;
+    
+    // Get existing cart
+    const existingCart = localStorage.getItem('pawdeal_cart');
+    let cart = [];
+    
+    if (existingCart) {
+      try {
+        cart = JSON.parse(existingCart);
+      } catch (error) {
+        console.error('Error parsing cart:', error);
+        cart = [];
+      }
+    }
+    
+    // Check if pet already exists
+    const existingIndex = cart.findIndex((item: any) => item.id === pet.id);
+    
+    if (existingIndex !== -1) {
+      cart[existingIndex].quantity += 1;
+    } else {
+      cart.push({
+        id: pet.id,
+        name: pet.name,
+        price: priceNum,
+        quantity: 1,
+        image: pet.primary_image || pet.image,
+        category: pet.category,
+        type: 'pet'
+      });
+    }
+    
+    localStorage.setItem('pawdeal_cart', JSON.stringify(cart));
+    setIsAdded(true);
+    toast.success(`${pet.name} added to cart!`);
+    setTimeout(() => setIsAdded(false), 2000);
   };
 
   const getImageUrl = () => {
     if (pet.image) return pet.image;
     if (pet.primary_image) {
-      return `http://localhost:5000${pet.primary_image}`;
+      const filename = pet.primary_image.split('/').pop();
+      return `http://localhost:5000/api/images/pets/${filename}`;
     }
-    return '/placeholder.png';
+    return 'https://placehold.co/400x400?text=Pet';
   };
 
   const formatPrice = (price: any) => {
@@ -53,7 +135,7 @@ export const PetCard: React.FC<{ pet: any }> = ({ pet }) => {
             alt={pet.name}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
           />
-          <div className="absolute top-4 right-4 z-10">
+          <div className="absolute top-4 right-4 z-10 flex gap-2">
             <Button 
               type="button"
               variant="secondary" 
@@ -66,6 +148,15 @@ export const PetCard: React.FC<{ pet: any }> = ({ pet }) => {
               disabled={loading}
             >
               <Heart className={cn("w-5 h-5", isFavorite && "fill-current")} />
+            </Button>
+            <Button 
+              type="button"
+              variant="secondary" 
+              size="icon" 
+              className={`rounded-full bg-white/80 backdrop-blur-sm transition-all hover:scale-110 shadow-lg ${isAdded ? 'bg-green-500 text-white' : 'text-tropical hover:text-white hover:bg-tropical'}`}
+              onClick={handleAddToCart}
+            >
+              {isAdded ? <Check className="w-5 h-5" /> : <ShoppingBag className="w-5 h-5" />}
             </Button>
           </div>
           <div className="absolute bottom-4 left-4">
@@ -95,31 +186,62 @@ export const PetCard: React.FC<{ pet: any }> = ({ pet }) => {
 
 export const ProductCard: React.FC<{ product: any }> = ({ product }) => {
   const { user } = useAuth();
-  const { addToCart } = useCart();
+  const [isAdded, setIsAdded] = useState(false);
 
   const safePrice = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
     if (!user) {
-      toast.error('Please login to shop');
+      toast.error('Please login to add to cart');
       return;
     }
-    addToCart({
-      id: product.id,
-      name: product.name,
-      price: safePrice,
-      quantity: 1
-    });
-    toast.success('Added to cart!');
+    
+    // Get existing cart
+    const existingCart = localStorage.getItem('pawdeal_cart');
+    let cart = [];
+    
+    if (existingCart) {
+      try {
+        cart = JSON.parse(existingCart);
+      } catch (error) {
+        console.error('Error parsing cart:', error);
+        cart = [];
+      }
+    }
+    
+    // Check if product already exists
+    const existingIndex = cart.findIndex((item: any) => item.id === product.id);
+    
+    if (existingIndex !== -1) {
+      cart[existingIndex].quantity += 1;
+    } else {
+      cart.push({
+        id: product.id,
+        name: product.name,
+        price: safePrice,
+        quantity: 1,
+        image: product.primary_image || product.image,
+        category: product.category,
+        type: 'product'
+      });
+    }
+    
+    localStorage.setItem('pawdeal_cart', JSON.stringify(cart));
+    setIsAdded(true);
+    toast.success(`${product.name} added to cart!`);
+    setTimeout(() => setIsAdded(false), 2000);
   };
 
   const getImageUrl = () => {
     if (product.image) return product.image;
     if (product.primary_image) {
-      return `http://localhost:5000${product.primary_image}`;
+      const filename = product.primary_image.split('/').pop();
+      return `http://localhost:5000/api/images/products/${filename}`;
     }
-    return '/placeholder.png';
+    return 'https://placehold.co/400x400?text=Product';
   };
 
   return (
@@ -131,7 +253,7 @@ export const ProductCard: React.FC<{ product: any }> = ({ product }) => {
             alt={product.name}
             className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700"
           />
-          {product.sale && (
+          {product.sale_price && (
              <div className="absolute top-4 left-4">
                 <Badge className="bg-reef text-white border-none font-black uppercase tracking-widest text-[10px]">SALE</Badge>
              </div>
@@ -140,10 +262,10 @@ export const ProductCard: React.FC<{ product: any }> = ({ product }) => {
              <Button 
                type="button"
                size="icon" 
-               className="rounded-full bg-tropical text-white hover:bg-tropical/90 shadow-xl"
+               className={`rounded-full shadow-xl ${isAdded ? 'bg-green-500 text-white' : 'bg-tropical text-white hover:bg-tropical/90'}`}
                onClick={handleAddToCart}
              >
-                <ShoppingBag className="w-5 h-5" />
+                {isAdded ? <Check className="w-5 h-5" /> : <ShoppingBag className="w-5 h-5" />}
              </Button>
           </div>
         </div>
@@ -155,7 +277,7 @@ export const ProductCard: React.FC<{ product: any }> = ({ product }) => {
           <h3 className="text-lg font-extrabold text-ocean group-hover:text-reef transition-colors line-clamp-2 leading-snug">{product.name}</h3>
           <div className="flex items-baseline gap-2">
             <span className="text-xl font-black text-ocean">${safePrice.toFixed(2)}</span>
-            {product.sale && <span className="text-sm text-muted-foreground line-through font-bold">${(safePrice * 1.2).toFixed(2)}</span>}
+            {product.sale_price && <span className="text-sm text-muted-foreground line-through font-bold">${(safePrice * 1.2).toFixed(2)}</span>}
           </div>
         </CardContent>
       </Card>

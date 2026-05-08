@@ -1,41 +1,82 @@
-import React from 'react';
-import { useCart } from '@/contexts/CartContext';
-import { useAuth } from '@/contexts/AuthContext';
-import { PageHeader } from '@/components/common/PageCollection';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { 
-  Trash2, Plus, Minus, ArrowRight, 
-  ShoppingBag, Truck, ShieldCheck, 
-  CreditCard, Info, ArrowLeft, ChevronRight
-} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Trash2, Plus, Minus, ArrowRight, ShoppingBag, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
 
+interface CartItem {
+  id: string;
+  name: string;
+  price: number | string;
+  quantity: number;
+  image?: string;
+  category?: string;
+  type?: string;
+}
+
 const Cart: React.FC = () => {
-  const { items, removeFromCart, updateQuantity, subtotal } = useCart();
+  const [items, setItems] = useState<CartItem[]>([]);
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  if (items.length === 0) {
-    return (
-      <div className="pb-20 min-h-[calc(100vh-80px)]">
-        <PageHeader title="Shopping Cart" description="Review your selected pet products and accessories before checkout." breadcrumbs={[{ name: 'Home', path: '/' }, { name: 'Cart' }]} />
-        <div className="container py-32 text-center bg-white rounded-[3rem] shadow-2xl border border-border">
-           <div className="w-24 h-24 bg-foam rounded-full flex items-center justify-center mx-auto mb-8">
-             <ShoppingBag className="w-12 h-12 text-muted-foreground opacity-30" />
-           </div>
-           <h2 className="text-4xl font-extrabold text-ocean mb-4 tracking-tighter">Your cart is empty</h2>
-           <p className="text-muted-foreground max-w-sm mx-auto mb-12 leading-relaxed">Looks like you haven't added any pet supplies yet. Browse our store to find the best for your companion.</p>
-           <Button asChild size="lg" className="bg-reef hover:bg-reef/90 text-white font-extrabold h-14 px-12 rounded-xl text-lg shadow-xl">
-             <Link to="/products">Start Shopping <ArrowRight className="ml-2 w-5 h-5" /></Link>
-           </Button>
-        </div>
-      </div>
+  useEffect(() => {
+    const saved = localStorage.getItem('pawdeal_cart');
+    if (saved && saved !== '[]') {
+      try {
+        const parsed = JSON.parse(saved);
+        // Convert price to number for each item
+        const fixedItems = parsed.map((item: CartItem) => ({
+          ...item,
+          price: typeof item.price === 'string' ? parseFloat(item.price) : item.price
+        }));
+        setItems(fixedItems);
+      } catch (e) {
+        console.error('Failed to parse cart:', e);
+      }
+    }
+  }, []);
+
+  const saveCart = (newItems: CartItem[]) => {
+    localStorage.setItem('pawdeal_cart', JSON.stringify(newItems));
+    setItems(newItems);
+  };
+
+  const updateQuantity = (id: string, newQuantity: number) => {
+    if (newQuantity < 1) return;
+    const updated = items.map(item => 
+      item.id === id ? { ...item, quantity: newQuantity } : item
     );
-  }
+    saveCart(updated);
+  };
+
+  const removeFromCart = (id: string) => {
+    const updated = items.filter(item => item.id !== id);
+    saveCart(updated);
+    toast.success('Removed from cart');
+  };
+
+  const getImageUrl = (item: CartItem) => {
+    if (item.image) {
+      if (item.image.startsWith('http')) return item.image;
+      const filename = item.image.split('/').pop();
+      if (item.type === 'pet') {
+        return `http://localhost:5000/api/images/pets/${filename}`;
+      }
+      return `http://localhost:5000/api/images/products/${filename}`;
+    }
+    return 'https://placehold.co/400x400?text=Item';
+  };
+
+  // Ensure price is a number for calculations
+  const getPrice = (item: CartItem) => {
+    return typeof item.price === 'number' ? item.price : parseFloat(String(item.price)) || 0;
+  };
+
+  const subtotal = items.reduce((sum, item) => sum + (getPrice(item) * item.quantity), 0);
+  const tax = subtotal * 0.08;
+  const total = subtotal + tax;
 
   const handleCheckout = () => {
     if (!user) {
@@ -46,94 +87,79 @@ const Cart: React.FC = () => {
     navigate('/checkout');
   };
 
+  if (items.length === 0) {
+    return (
+      <div className="min-h-screen bg-foam py-20">
+        <div className="container px-4">
+          <div className="max-w-md mx-auto bg-white rounded-2xl shadow-xl p-8 text-center">
+            <div className="w-20 h-20 bg-foam rounded-full flex items-center justify-center mx-auto mb-6">
+              <ShoppingBag className="w-10 h-10 text-muted-foreground" />
+            </div>
+            <h2 className="text-2xl font-bold text-ocean mb-3">Your cart is empty</h2>
+            <p className="text-muted-foreground mb-6">Looks like you haven't added any items yet.</p>
+            <Button asChild className="bg-reef hover:bg-reef/90 text-white">
+              <Link to="/products">Start Shopping <ArrowRight className="ml-2 w-4 h-4" /></Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="pb-20 bg-foam">
-      <PageHeader title="Shopping Cart" description={`You have ${items.length} items in your cart`} breadcrumbs={[{ name: 'Home', path: '/' }, { name: 'Cart' }]} />
-      
+    <div className="min-h-screen bg-foam py-8">
       <div className="container px-4">
-        <div className="grid lg:grid-cols-3 gap-12">
-          {/* Cart Items */}
-          <div className="lg:col-span-2 space-y-6">
-            {items.map((item) => (
-              <Card key={item.id} className="border-border shadow-sm rounded-3xl overflow-hidden hover:shadow-lg transition-shadow bg-white">
-                <CardContent className="p-6 flex flex-col sm:flex-row items-center gap-8">
-                  <div className="w-32 h-32 rounded-2xl overflow-hidden bg-muted shrink-0 border border-border">
-                    <img src={`https://images.unsplash.com/photo-${item.id}?auto=format&fit=crop&w=300&q=80`} className="w-full h-full object-cover" alt={item.name} />
-                  </div>
-                  <div className="flex-1 space-y-2 text-center sm:text-left">
-                    <h3 className="text-xl font-extrabold text-ocean line-clamp-1">{item.name}</h3>
-                    <p className="text-sm text-muted-foreground">Category: Pet Supplies</p>
-                    <div className="flex items-center justify-center sm:justify-start gap-2 pt-2">
-                       <span className="text-2xl font-extrabold text-reef">${item.price.toFixed(2)}</span>
-                       <Badge variant="secondary" className="bg-success/10 text-success border-none text-[10px] font-bold">IN STOCK</Badge>
+        <h1 className="text-2xl font-bold text-ocean mb-6">Shopping Cart ({items.length} items)</h1>
+        
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-3">
+            {items.map((item) => {
+              const itemPrice = getPrice(item);
+              return (
+                <Card key={item.id} className="p-4">
+                  <div className="flex gap-4">
+                    <div className="w-20 h-20 rounded-lg overflow-hidden bg-foam shrink-0">
+                      <img src={getImageUrl(item)} className="w-full h-full object-cover" alt={item.name} />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-ocean">{item.name}</h3>
+                      <p className="text-sm text-muted-foreground">{item.category || 'Product'}</p>
+                      <p className="text-lg font-bold text-reef mt-1">${itemPrice.toFixed(2)}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center border rounded-lg">
+                        <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-8 h-8 flex items-center justify-center hover:bg-foam"><Minus className="w-3 h-3" /></button>
+                        <span className="w-8 text-center text-sm">{item.quantity}</span>
+                        <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-8 h-8 flex items-center justify-center hover:bg-foam"><Plus className="w-3 h-3" /></button>
+                      </div>
+                      <button onClick={() => removeFromCart(item.id)} className="text-muted-foreground hover:text-red-500">
+                        <Trash2 className="w-5 h-5" />
+                      </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-6">
-                    <div className="flex items-center border border-border rounded-xl bg-foam overflow-hidden h-12">
-                      <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-10 flex items-center justify-center hover:bg-white transition-colors"><Minus className="w-4 h-4" /></button>
-                      <span className="w-10 text-center font-bold text-ocean">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-10 flex items-center justify-center hover:bg-white transition-colors"><Plus className="w-4 h-4" /></button>
-                    </div>
-                    <Button variant="ghost" size="icon" onClick={() => removeFromCart(item.id)} className="text-muted-foreground hover:text-reef h-12 w-12 rounded-xl">
-                      <Trash2 className="w-6 h-6" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            <Button asChild variant="ghost" className="text-tropical font-extrabold h-12 px-0 hover:bg-transparent">
-              <Link to="/products" className="flex items-center gap-2"><ArrowLeft className="w-5 h-5" /> Continue Shopping</Link>
+                </Card>
+              );
+            })}
+            <Button asChild variant="link" className="text-tropical">
+              <Link to="/products"><ArrowLeft className="w-4 h-4 mr-1" /> Continue Shopping</Link>
             </Button>
           </div>
 
-          {/* Summary */}
-          <aside className="space-y-8">
-            <Card className="border-border shadow-2xl rounded-[2.5rem] overflow-hidden sticky top-24 bg-white">
-              <CardHeader className="bg-ocean text-white p-8">
-                <CardTitle className="text-2xl font-extrabold">Order Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="p-8 space-y-6">
-                <div className="space-y-4">
-                  <div className="flex justify-between text-muted-foreground font-medium text-sm">
-                    <span>Subtotal</span>
-                    <span className="text-ocean font-bold">${subtotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-muted-foreground font-medium text-sm">
-                    <span>Shipping</span>
-                    <span className="text-success font-bold">FREE</span>
-                  </div>
-                  <div className="flex justify-between text-muted-foreground font-medium text-sm">
-                    <span>Tax Estimate</span>
-                    <span className="text-ocean font-bold">${(subtotal * 0.08).toFixed(2)}</span>
-                  </div>
+          <div>
+            <Card className="p-5 sticky top-24">
+              <h2 className="text-lg font-bold text-ocean mb-4">Order Summary</h2>
+              <div className="space-y-3">
+                <div className="flex justify-between"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
+                <div className="flex justify-between"><span>Shipping</span><span className="text-green-600">FREE</span></div>
+                <div className="flex justify-between"><span>Tax (8%)</span><span>${tax.toFixed(2)}</span></div>
+                <div className="pt-3 border-t flex justify-between">
+                  <span className="font-bold">Total</span>
+                  <span className="text-xl font-bold text-reef">${total.toFixed(2)}</span>
                 </div>
-                <div className="pt-6 border-t border-border flex justify-between items-center">
-                   <span className="text-xl font-extrabold text-ocean">Total</span>
-                   <span className="text-3xl font-extrabold text-reef">${(subtotal * 1.08).toFixed(2)}</span>
-                </div>
-                <div className="pt-4 space-y-4">
-                  <div className="bg-foam p-4 rounded-2xl flex gap-3 border border-border">
-                    <Truck className="w-5 h-5 text-tropical shrink-0 mt-0.5" />
-                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest leading-relaxed">Expect delivery within 3-5 business days after order confirmation.</p>
-                  </div>
-                  <Button onClick={handleCheckout} className="w-full bg-reef hover:bg-reef/90 text-white font-extrabold h-14 rounded-2xl text-lg shadow-xl shadow-reef/20 group">
-                    Checkout Now <ChevronRight className="ml-2 w-6 h-6 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </div>
-              </CardContent>
+                <Button onClick={handleCheckout} className="w-full bg-reef hover:bg-reef/90 text-white mt-4">Proceed to Checkout</Button>
+              </div>
             </Card>
-
-            <div className="grid grid-cols-2 gap-4">
-               <div className="bg-white p-6 rounded-3xl border border-border flex flex-col items-center text-center space-y-2">
-                 <ShieldCheck className="w-8 h-8 text-tropical" />
-                 <h4 className="font-extrabold text-xs text-ocean uppercase tracking-widest leading-none">Secure Payment</h4>
-               </div>
-               <div className="bg-white p-6 rounded-3xl border border-border flex flex-col items-center text-center space-y-2">
-                 <CreditCard className="w-8 h-8 text-tropical" />
-                 <h4 className="font-extrabold text-xs text-ocean uppercase tracking-widest leading-none">Many Options</h4>
-               </div>
-            </div>
-          </aside>
+          </div>
         </div>
       </div>
     </div>

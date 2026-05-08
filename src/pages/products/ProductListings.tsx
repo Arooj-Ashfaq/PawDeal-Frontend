@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search, PlusCircle, Heart, ShoppingBag, Loader2 } from 'lucide-react';
+import { Search, PlusCircle, Heart, ShoppingBag, Loader2, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Product {
@@ -21,7 +21,6 @@ interface Product {
   rating_avg: number;
   primary_image: string | null;
   status: string;
-  description?: string;
 }
 
 const ProductListings: React.FC = () => {
@@ -33,6 +32,7 @@ const ProductListings: React.FC = () => {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('created_at');
   const [priceRange, setPriceRange] = useState('all');
+  const [addedItems, setAddedItems] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchProducts();
@@ -84,13 +84,55 @@ const ProductListings: React.FC = () => {
     }
   };
 
-  const getImageUrl = (product: Product) => {
-    if (product.primary_image) {
-      if (product.primary_image.startsWith('http')) return product.primary_image;
-      const filename = product.primary_image.split('/').pop();
-      return `http://localhost:5000/api/images/products/${filename}`;
+  const addToCart = (product: Product) => {
+    if (!user) {
+      toast.error('Please login to add to cart');
+      navigate('/login');
+      return;
     }
-    return null;
+    
+    const priceValue = product.sale_price || product.price;
+    
+    // Get existing cart
+    const existingCart = localStorage.getItem('pawdeal_cart');
+    let cart = existingCart ? JSON.parse(existingCart) : [];
+    
+    // Check if product already exists
+    const existingIndex = cart.findIndex((item: any) => item.id === product.id);
+    
+    if (existingIndex !== -1) {
+      cart[existingIndex].quantity += 1;
+    } else {
+      cart.push({
+        id: product.id,
+        name: product.name,
+        price: priceValue,
+        quantity: 1,
+        image: product.primary_image,
+        category: product.category,
+        type: 'product'
+      });
+    }
+    
+    localStorage.setItem('pawdeal_cart', JSON.stringify(cart));
+    
+    // Show feedback
+    setAddedItems(prev => new Set(prev).add(product.id));
+    toast.success(`${product.name} added to cart!`);
+    setTimeout(() => {
+      setAddedItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(product.id);
+        return newSet;
+      });
+    }, 2000);
+  };
+
+  const getImageUrl = (imagePath: string | null) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http')) return imagePath;
+    const filename = imagePath.split('/').pop();
+    return `http://localhost:5000/api/images/products/${filename}`;
   };
 
   const formatPrice = (price: number, salePrice: number | null) => {
@@ -124,7 +166,6 @@ const ProductListings: React.FC = () => {
             </h1>
             <p className="text-muted-foreground mt-2">Find the best products for your furry friends</p>
           </div>
-
           {user && (
             <Link to="/products/create">
               <Button className="bg-reef hover:bg-reef/90 text-white">
@@ -180,19 +221,17 @@ const ProductListings: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {productList.map((product) => {
-              const imageUrl = getImageUrl(product);
+              const imageUrl = getImageUrl(product.primary_image);
+              const isAdded = addedItems.has(product.id);
               return (
-                <Link to={`/product/${product.id}`} key={product.id}>
-                  <Card className="group overflow-hidden border-border hover:shadow-xl transition-all duration-300 rounded-2xl">
+                <Card key={product.id} className="group overflow-hidden border-border hover:shadow-xl transition-all duration-300 rounded-2xl">
+                  <Link to={`/product/${product.id}`}>
                     <div className="relative h-48 overflow-hidden bg-foam">
                       {imageUrl ? (
                         <img
                           src={imageUrl}
                           alt={product.name}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                          }}
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-foam">
@@ -200,9 +239,7 @@ const ProductListings: React.FC = () => {
                         </div>
                       )}
                       {product.sale_price && (
-                        <Badge className="absolute top-3 right-3 bg-reef text-white">
-                          Sale
-                        </Badge>
+                        <Badge className="absolute top-3 right-3 bg-reef text-white">Sale</Badge>
                       )}
                       {product.stock_quantity === 0 && (
                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -212,9 +249,7 @@ const ProductListings: React.FC = () => {
                     </div>
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between mb-2">
-                        <Badge variant="secondary" className="text-xs">
-                          {product.category}
-                        </Badge>
+                        <Badge variant="secondary" className="text-xs">{product.category}</Badge>
                         {product.rating_avg > 0 && (
                           <div className="flex items-center gap-1">
                             <span className="text-xs font-bold">{product.rating_avg}</span>
@@ -222,31 +257,25 @@ const ProductListings: React.FC = () => {
                         )}
                       </div>
                       <h3 className="font-bold text-ocean mb-1 line-clamp-1">{product.name}</h3>
-                      {product.brand && (
-                        <p className="text-xs text-muted-foreground mb-2">{product.brand}</p>
-                      )}
+                      {product.brand && <p className="text-xs text-muted-foreground mb-2">{product.brand}</p>}
                       <div className="flex items-center justify-between mt-2">
                         {formatPrice(product.price, product.sale_price)}
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="rounded-full hover:bg-reef/10 hover:text-reef"
+                          className={`rounded-full hover:scale-110 transition-all ${isAdded ? 'bg-green-500 text-white' : 'hover:bg-reef/10 hover:text-reef'}`}
                           onClick={(e) => {
                             e.preventDefault();
-                            if (!user) {
-                              toast.error('Please login to add to favorites');
-                              navigate('/login');
-                            } else {
-                              toast.success('Added to favorites');
-                            }
+                            e.stopPropagation();
+                            addToCart(product);
                           }}
                         >
-                          <Heart className="w-5 h-5" />
+                          {isAdded ? <Check className="w-5 h-5" /> : <ShoppingBag className="w-5 h-5" />}
                         </Button>
                       </div>
                     </CardContent>
-                  </Card>
-                </Link>
+                  </Link>
+                </Card>
               );
             })}
           </div>

@@ -7,10 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  Heart, MapPin, Calendar, CheckCircle, 
-  MessageSquare, Share2, ArrowLeft, 
+  Heart, MessageSquare, Share2, ArrowLeft, 
   ShieldCheck, User, Loader2, ShoppingBag,
-  Star, Truck, Package
+  Star, Truck, Package, Minus, Plus
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -77,8 +76,30 @@ const ProductDetail: React.FC = () => {
       navigate('/login');
       return;
     }
-    // Add to cart logic here
-    toast.success(`Added ${quantity} x ${product?.name} to cart`);
+    
+    if (!product) return;
+    
+    const priceNum = product.sale_price || product.price;
+    const cartItem = {
+      id: product.id,
+      name: product.name,
+      price: priceNum,
+      quantity: quantity,
+      image: product.images?.[0]?.image_url,
+      category: product.category,
+      type: 'product'
+    };
+    
+    const existingCart = localStorage.getItem('pawdeal_cart');
+    let cart = existingCart ? JSON.parse(existingCart) : [];
+    const existingItem = cart.find((item: any) => item.id === product.id);
+    if (existingItem) {
+      existingItem.quantity += quantity;
+    } else {
+      cart.push(cartItem);
+    }
+    localStorage.setItem('pawdeal_cart', JSON.stringify(cart));
+    toast.success(`Added ${quantity} x ${product.name} to cart!`);
   };
 
   const handleMessageSeller = () => {
@@ -129,16 +150,16 @@ const ProductDetail: React.FC = () => {
   }
 
   return (
-    <div className="pb-20">
+    <div className="pb-20 bg-foam min-h-screen">
       <div className="container px-4 py-8">
         <Link to="/products" className="inline-flex items-center gap-2 text-muted-foreground hover:text-reef mb-6">
           <ArrowLeft className="w-4 h-4" /> Back to Products
         </Link>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left: Photos */}
-          <div className="space-y-4">
-            <div className="aspect-square rounded-2xl overflow-hidden bg-foam relative">
+          <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <div className="aspect-square rounded-xl overflow-hidden bg-foam mb-4">
               {selectedImage ? (
                 <img
                   src={getImageUrl(selectedImage)}
@@ -146,17 +167,17 @@ const ProductDetail: React.FC = () => {
                   className="w-full h-full object-contain p-8"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-foam">
+                <div className="w-full h-full flex items-center justify-center">
                   <Package className="w-16 h-16 text-muted-foreground" />
                 </div>
               )}
             </div>
             {product.images && product.images.length > 1 && (
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-4 gap-2">
                 {product.images.map((img, index) => (
                   <div 
                     key={index} 
-                    className={`aspect-square rounded-xl overflow-hidden bg-foam cursor-pointer hover:ring-2 ${selectedImage === img.image_url ? 'ring-2 ring-reef' : 'ring-0'}`}
+                    className={`aspect-square rounded-lg overflow-hidden bg-foam cursor-pointer border-2 ${selectedImage === img.image_url ? 'border-reef' : 'border-transparent'}`}
                     onClick={() => setSelectedImage(img.image_url)}
                   >
                     <img
@@ -171,12 +192,10 @@ const ProductDetail: React.FC = () => {
           </div>
 
           {/* Right: Info */}
-          <div className="space-y-6">
+          <div className="bg-white rounded-2xl p-6 shadow-sm space-y-6">
             <div>
-              <div className="flex justify-between items-start">
-                <h1 className="text-3xl font-extrabold text-ocean">{product.name}</h1>
-              </div>
-              <div className="flex items-center gap-2 mt-2">
+              <h1 className="text-3xl font-extrabold text-ocean">{product.name}</h1>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <Badge variant="secondary">{product.category}</Badge>
                 {product.brand && <Badge variant="outline">{product.brand}</Badge>}
                 {product.stock_quantity > 0 ? (
@@ -200,58 +219,30 @@ const ProductDetail: React.FC = () => {
               {getPrice()}
             </div>
 
-            <div className="space-y-2">
-              <h3 className="font-bold text-ocean">Description</h3>
-              <p className="text-muted-foreground">{product.description || 'No description available.'}</p>
-            </div>
-
-            {/* Product Details */}
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              {product.sku && (
-                <div>
-                  <span className="text-muted-foreground">SKU:</span>
-                  <p className="font-medium">{product.sku}</p>
-                </div>
-              )}
-              {product.weight_kg && (
-                <div>
-                  <span className="text-muted-foreground">Weight:</span>
-                  <p className="font-medium">{product.weight_kg} kg</p>
-                </div>
-              )}
-              {product.dimensions && (
-                <div>
-                  <span className="text-muted-foreground">Dimensions:</span>
-                  <p className="font-medium">{product.dimensions}</p>
-                </div>
-              )}
-              {product.materials && (
-                <div>
-                  <span className="text-muted-foreground">Materials:</span>
-                  <p className="font-medium">{product.materials}</p>
-                </div>
-              )}
-            </div>
+            <p className="text-muted-foreground">{product.description || 'No description available.'}</p>
 
             {/* Quantity and Add to Cart */}
             {product.stock_quantity > 0 && (
-              <div className="flex items-center gap-4">
-                <div className="flex items-center border rounded-lg">
-                  <button
-                    className="px-3 py-2 hover:bg-foam"
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  >
-                    -
-                  </button>
-                  <span className="px-4 py-2">{quantity}</span>
-                  <button
-                    className="px-3 py-2 hover:bg-foam"
-                    onClick={() => setQuantity(Math.min(product.stock_quantity, quantity + 1))}
-                  >
-                    +
-                  </button>
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <span className="font-medium">Quantity:</span>
+                  <div className="flex items-center border rounded-lg">
+                    <button
+                      className="px-3 py-2 hover:bg-foam"
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <span className="px-4 py-2 min-w-[50px] text-center">{quantity}</span>
+                    <button
+                      className="px-3 py-2 hover:bg-foam"
+                      onClick={() => setQuantity(Math.min(product.stock_quantity, quantity + 1))}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-                <Button onClick={handleAddToCart} className="flex-1 bg-reef hover:bg-reef/90 text-white h-12 gap-2">
+                <Button onClick={handleAddToCart} className="w-full bg-reef hover:bg-reef/90 text-white h-12 gap-2">
                   <ShoppingBag className="w-5 h-5" /> Add to Cart
                 </Button>
               </div>
@@ -272,18 +263,6 @@ const ProductDetail: React.FC = () => {
                 </Button>
               </CardContent>
             </Card>
-
-            {/* Shipping Info */}
-            <div className="bg-foam rounded-xl p-4 space-y-2">
-              <div className="flex items-center gap-3">
-                <Truck className="w-5 h-5 text-tropical" />
-                <span className="text-sm font-medium">Free shipping on orders over $50</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="w-5 h-5 text-tropical" />
-                <span className="text-sm font-medium">30-day return policy</span>
-              </div>
-            </div>
           </div>
         </div>
       </div>

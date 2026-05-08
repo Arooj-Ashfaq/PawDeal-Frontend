@@ -53,7 +53,7 @@ const Sellers: React.FC = () => {
                 <CardContent className="p-8 pt-0 -mt-10 flex flex-col items-center text-center space-y-4">
                   <div className="w-20 h-20 rounded-2xl bg-white p-1 shadow-lg overflow-hidden shrink-0 border border-border group-hover:-translate-y-2 transition-transform">
                     <img 
-                      src={`https://i.pravatar.cc/150?u=${seller.id}`} 
+                      src={seller.image}
                       alt={seller.name}
                       className="w-full h-full object-cover rounded-xl"
                     />
