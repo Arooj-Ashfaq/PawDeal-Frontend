@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCart } from '@/contexts/CartContext';
 import { 
-  Menu, X, Search, ShoppingCart, User, LogOut, 
+  Menu, Search, ShoppingCart, User, LogOut, 
   Dog, Cat, Fish, Bird, Rabbit, Heart, MessageSquare, 
-  LayoutDashboard, BookOpen, Users, HelpCircle, Phone, Info,
-  ChevronDown, Bell, Package
+  LayoutDashboard, Package
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,10 +21,25 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 
 const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, signOut } = useAuth();
-  const { items } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Get cart count from localStorage directly
+  const getCartCount = () => {
+    const cart = localStorage.getItem('pawdeal_cart');
+    if (cart) {
+      try {
+        const items = JSON.parse(cart);
+        return items.reduce((sum: number, item: any) => sum + item.quantity, 0);
+      } catch (e) {
+        return 0;
+      }
+    }
+    return 0;
+  };
+
+  const cartCount = getCartCount();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +68,6 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground font-sans">
-      {/* Top Banner/Header */}
       <header className="sticky top-0 z-50 w-full bg-ocean text-white shadow-md">
         <div className="container flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-4 lg:gap-8">
@@ -90,9 +102,9 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <div className="flex items-center gap-4">
             <Link to="/cart" className="relative p-2 hover:bg-white/10 rounded-full transition-colors">
               <ShoppingCart className="w-5 h-5" />
-              {items.length > 0 && (
+              {cartCount > 0 && (
                 <Badge className="absolute -top-1 -right-1 bg-reef hover:bg-reef px-1.5 py-0.5 text-[10px] h-4 min-w-4 flex items-center justify-center">
-                  {items.reduce((sum, i) => sum + i.quantity, 0)}
+                  {cartCount}
                 </Badge>
               )}
             </Link>
@@ -225,11 +237,9 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </div>
         </div>
       </header>
-      {/* Main Content Area */}
       <main className="flex-1">
         {children}
       </main>
-      {/* Footer */}
       <footer className="text-white py-12 bg-ocean">
         <div className="container px-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">

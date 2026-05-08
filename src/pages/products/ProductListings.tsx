@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search, PlusCircle, Heart, ShoppingBag, Loader2, Check } from 'lucide-react';
+import { Search, PlusCircle, ShoppingBag, Loader2, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Product {
@@ -85,6 +85,8 @@ const ProductListings: React.FC = () => {
   };
 
   const addToCart = (product: Product) => {
+    console.log('addToCart called for:', product.name);
+    
     if (!user) {
       toast.error('Please login to add to cart');
       navigate('/login');
@@ -92,12 +94,19 @@ const ProductListings: React.FC = () => {
     }
     
     const priceValue = product.sale_price || product.price;
+    const numericPrice = typeof priceValue === 'number' ? priceValue : parseFloat(String(priceValue)) || 0;
     
-    // Get existing cart
     const existingCart = localStorage.getItem('pawdeal_cart');
-    let cart = existingCart ? JSON.parse(existingCart) : [];
+    let cart = [];
     
-    // Check if product already exists
+    if (existingCart && existingCart !== '[]') {
+      try {
+        cart = JSON.parse(existingCart);
+      } catch (e) {
+        console.error('Parse error:', e);
+      }
+    }
+    
     const existingIndex = cart.findIndex((item: any) => item.id === product.id);
     
     if (existingIndex !== -1) {
@@ -106,7 +115,7 @@ const ProductListings: React.FC = () => {
       cart.push({
         id: product.id,
         name: product.name,
-        price: priceValue,
+        price: numericPrice,
         quantity: 1,
         image: product.primary_image,
         category: product.category,
@@ -115,8 +124,8 @@ const ProductListings: React.FC = () => {
     }
     
     localStorage.setItem('pawdeal_cart', JSON.stringify(cart));
+    console.log('Cart saved:', localStorage.getItem('pawdeal_cart'));
     
-    // Show feedback
     setAddedItems(prev => new Set(prev).add(product.id));
     toast.success(`${product.name} added to cart!`);
     setTimeout(() => {

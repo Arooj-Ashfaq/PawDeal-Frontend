@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Heart, MapPin, Calendar, CheckCircle, 
   MessageSquare, Share2, ArrowLeft, 
-  ShieldCheck, User, Loader2
+  ShieldCheck, User, Loader2, ShoppingBag,
+  Minus, Plus, Check
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -53,6 +54,8 @@ const PetDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string>('');
   const [isFavorite, setIsFavorite] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [isAdded, setIsAdded] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -75,7 +78,6 @@ const PetDetail: React.FC = () => {
       const petData = response.pet || response.data || response;
       setPet(petData);
       
-      // Set the selected image
       if (petData.images && petData.images.length > 0) {
         const primary = petData.images.find((img: any) => img.is_primary === 1);
         setSelectedImage(primary ? primary.image_url : petData.images[0].image_url);
@@ -88,6 +90,42 @@ const PetDetail: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAddToCart = () => {
+    if (!user) {
+      toast.error('Please login to add to cart');
+      navigate('/login');
+      return;
+    }
+    
+    if (!pet) return;
+    
+    const priceNum = typeof pet.price === 'number' ? pet.price : parseFloat(String(pet.price)) || 0;
+    
+    const existingCart = localStorage.getItem('pawdeal_cart');
+    let cart = existingCart ? JSON.parse(existingCart) : [];
+    
+    const existingIndex = cart.findIndex((item: any) => item.id === pet.id);
+    
+    if (existingIndex !== -1) {
+      cart[existingIndex].quantity += quantity;
+    } else {
+      cart.push({
+        id: pet.id,
+        name: pet.name,
+        price: priceNum,
+        quantity: quantity,
+        image: pet.primary_image,
+        category: pet.category,
+        type: 'pet'
+      });
+    }
+    
+    localStorage.setItem('pawdeal_cart', JSON.stringify(cart));
+    setIsAdded(true);
+    toast.success(`${quantity} x ${pet.name} added to cart!`);
+    setTimeout(() => setIsAdded(false), 2000);
   };
 
   const handleMessageSeller = () => {
@@ -193,7 +231,7 @@ const PetDetail: React.FC = () => {
                       toast.success(isFavorite ? 'Removed from favorites' : 'Added to favorites');
                     }}
                   >
-                    <Heart className={`w-5 h-5 ${isFavorite ? "fill-current" : ""}`} />
+                    <Heart className={`w-5 h-5 ${isFavorite ? "fill-current text-reef" : ""}`} />
                   </Button>
                 </div>
               </div>
@@ -209,6 +247,35 @@ const PetDetail: React.FC = () => {
                   <MapPin className="w-3 h-3" /> {pet.city}, {pet.state}
                 </Badge>
               </div>
+            </div>
+
+            {/* Quantity and Add to Cart */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <span className="font-medium">Quantity:</span>
+                <div className="flex items-center border rounded-lg">
+                  <button
+                    className="px-3 py-2 hover:bg-foam"
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <span className="px-4 py-2 min-w-[50px] text-center">{quantity}</span>
+                  <button
+                    className="px-3 py-2 hover:bg-foam"
+                    onClick={() => setQuantity(quantity + 1)}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <Button 
+                onClick={handleAddToCart} 
+                className={`w-full h-12 gap-2 transition-all ${isAdded ? 'text-reef border-reef bg-white hover:bg-reef/10' : 'bg-reef hover:bg-reef/90 text-white'}`}
+              >
+                {isAdded ? <Check className="w-5 h-5 text-reef" /> : <ShoppingBag className="w-5 h-5" />}
+                {isAdded ? 'Added to Cart!' : 'Add to Cart'}
+              </Button>
             </div>
 
             <div className="flex gap-4">
