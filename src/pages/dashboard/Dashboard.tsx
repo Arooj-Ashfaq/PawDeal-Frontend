@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { pets } from '@/services/api';
+import { pets, products } from '@/services/api';
 import { 
   LayoutDashboard, ShoppingBag, Heart, MessageSquare, 
   Settings, User, PlusCircle, TrendingUp, 
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   LineChart, Line, PieChart as RechartsPieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -24,7 +25,9 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   
   const [myPets, setMyPets] = useState<any[]>([]);
+  const [myProducts, setMyProducts] = useState<any[]>([]);
   const [listingsLoading, setListingsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('pets');
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -35,22 +38,30 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     if (user && view === 'listings') {
-      fetchMyPets();
+      fetchMyListings();
     }
   }, [user, view]);
 
-  const fetchMyPets = async () => {
+  const fetchMyListings = async () => {
     setListingsLoading(true);
     try {
       const token = localStorage.getItem('pawdeal_token');
       if (!token) return;
       
-      const response: any = await pets.getAll();
-      const allPets = response.data || response.pets || [];
+      // Fetch pets
+      const petsResponse: any = await pets.getAll();
+      const allPets = petsResponse.data || petsResponse.pets || [];
       const userPets = allPets.filter((p: any) => p.seller_id === user?.id);
       setMyPets(userPets);
+      
+      // Fetch products
+      const productsResponse: any = await products.getAll();
+      const allProducts = productsResponse.data || productsResponse.products || [];
+      const userProducts = allProducts.filter((p: any) => p.seller_id === user?.id);
+      setMyProducts(userProducts);
+      
     } catch (error) {
-      console.error('Failed to fetch my pets:', error);
+      console.error('Failed to fetch listings:', error);
       toast.error('Failed to load your listings');
     } finally {
       setListingsLoading(false);
@@ -66,15 +77,35 @@ const Dashboard: React.FC = () => {
       
       await pets.delete(petId, token);
       toast.success('Pet deleted successfully');
-      fetchMyPets();
+      fetchMyListings();
     } catch (error) {
       console.error('Delete failed:', error);
       toast.error('Failed to delete pet');
     }
   };
 
+  const handleDeleteProduct = async (productId: string) => {
+    if (!confirm('Are you sure you want to delete this product?')) return;
+    
+    try {
+      const token = localStorage.getItem('pawdeal_token');
+      if (!token) return;
+      
+      await products.delete(productId, token);
+      toast.success('Product deleted successfully');
+      fetchMyListings();
+    } catch (error) {
+      console.error('Delete failed:', error);
+      toast.error('Failed to delete product');
+    }
+  };
+
   const handleEditPet = (petId: string) => {
     navigate(`/pet/${petId}/edit`);
+  };
+
+  const handleEditProduct = (productId: string) => {
+    navigate(`/product/${productId}/edit`);
   };
 
   if (authLoading) return <div className="container py-20 text-center">Loading...</div>;
@@ -206,16 +237,25 @@ const Dashboard: React.FC = () => {
       return <div className="text-center py-12">Loading your listings...</div>;
     }
 
-    if (myPets.length === 0) {
+    const totalListings = myPets.length + myProducts.length;
+    
+    if (totalListings === 0) {
       return (
         <div className="text-center py-12">
           <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground">You haven't listed any pets yet.</p>
-          <Link to="/pets/create">
-            <Button className="mt-4 bg-reef hover:bg-reef/90 text-white">
-              <PlusCircle className="w-4 h-4 mr-2" /> Add Your First Pet
-            </Button>
-          </Link>
+          <p className="text-muted-foreground">You haven't listed any pets or products yet.</p>
+          <div className="flex justify-center gap-4 mt-4">
+            <Link to="/pets/create">
+              <Button className="bg-reef hover:bg-reef/90 text-white">
+                <PlusCircle className="w-4 h-4 mr-2" /> Add Your First Pet
+              </Button>
+            </Link>
+            <Link to="/products/create">
+              <Button className="bg-reef hover:bg-reef/90 text-white">
+                <PlusCircle className="w-4 h-4 mr-2" /> Add Your First Product
+              </Button>
+            </Link>
+          </div>
         </div>
       );
     }
@@ -224,69 +264,226 @@ const Dashboard: React.FC = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-extrabold text-ocean">Manage Your Listings</h2>
-          <Link to="/pets/create">
-            <Button className="bg-reef hover:bg-reef/90 text-white font-bold h-10 px-6 rounded-xl gap-2 shadow-lg">
-              <PlusCircle className="w-5 h-5" /> Add New Pet
-            </Button>
-          </Link>
+          <div className="flex gap-3">
+            <Link to="/pets/create">
+              <Button className="bg-reef hover:bg-reef/90 text-white font-bold h-10 px-6 rounded-xl gap-2 shadow-lg">
+                <PlusCircle className="w-5 h-5" /> Add New Pet
+              </Button>
+            </Link>
+            <Link to="/products/create">
+              <Button className="bg-reef hover:bg-reef/90 text-white font-bold h-10 px-6 rounded-xl gap-2 shadow-lg">
+                <PlusCircle className="w-5 h-5" /> Add New Product
+              </Button>
+            </Link>
+          </div>
         </div>
-        <div className="grid gap-6">
-          {myPets.map((pet) => (
-            <Card key={pet.id} className="border-border shadow-sm rounded-2xl overflow-hidden hover:shadow-md transition-shadow"> 
-              <CardContent className="p-4 flex items-center gap-6">
-                <div className="w-24 h-24 rounded-xl overflow-hidden bg-muted shrink-0">
-                  <img 
-                    src={pet.primary_image ? `http://localhost:5000${pet.primary_image}` : `https://placehold.co/200x200`} 
-                    className="w-full h-full object-cover" 
-                    alt={pet.name} 
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-extrabold text-ocean text-lg">{pet.name}</h4>
-                      <p className="text-sm text-muted-foreground">{pet.breed || pet.category} • ${pet.price}</p>
+        
+        <Tabs defaultValue="pets" className="w-full" onValueChange={setActiveTab}>
+          <TabsList className="bg-white p-1 rounded-2xl h-12 border border-border shadow-sm mb-6">
+            <TabsTrigger value="pets" className="rounded-xl data-[state=active]:bg-ocean data-[state=active]:text-white font-bold">
+              My Pets ({myPets.length})
+            </TabsTrigger>
+            <TabsTrigger value="products" className="rounded-xl data-[state=active]:bg-ocean data-[state=active]:text-white font-bold">
+              My Products ({myProducts.length})
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="pets" className="space-y-4">
+            {myPets.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No pets listed yet.</p>
+                <Link to="/pets/create">
+                  <Button variant="link" className="text-reef mt-2">Add a pet</Button>
+                </Link>
+              </div>
+            ) : (
+              myPets.map((pet) => (
+                <Card key={pet.id} className="border-border shadow-sm rounded-2xl overflow-hidden hover:shadow-md transition-shadow"> 
+                  <CardContent className="p-4 flex items-center gap-6">
+                    <div className="w-24 h-24 rounded-xl overflow-hidden bg-muted shrink-0">
+                      <img 
+                        src={pet.primary_image ? `http://localhost:5000${pet.primary_image}` : `https://placehold.co/200x200`} 
+                        className="w-full h-full object-cover" 
+                        alt={pet.name} 
+                      />
                     </div>
-                    <Badge className={pet.status === 'available' ? "bg-success/10 text-success border-none" : "bg-muted/10 text-muted-foreground border-none"}>
-                      {pet.status || 'Available'}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-6 mt-4">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground font-bold uppercase tracking-widest">
-                      <Eye className="w-3 h-3" /> {pet.view_count || 0} Views
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-extrabold text-ocean text-lg">{pet.name}</h4>
+                          <p className="text-sm text-muted-foreground">{pet.breed || pet.category} • ${pet.price}</p>
+                        </div>
+                        <Badge className={pet.status === 'available' ? "bg-success/10 text-success border-none" : "bg-muted/10 text-muted-foreground border-none"}>
+                          {pet.status || 'Available'}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-6 mt-4">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground font-bold uppercase tracking-widest">
+                          <Eye className="w-3 h-3" /> {pet.view_count || 0} Views
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground font-bold uppercase tracking-widest">
+                          <Heart className="w-3 h-3" /> {pet.favorite_count || 0} Saves
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground font-bold uppercase tracking-widest">
-                      <Heart className="w-3 h-3" /> {pet.favorite_count || 0} Saves
+                    <div className="flex flex-col gap-2">
+                      <Button 
+                        type="button" 
+                        onClick={() => handleEditPet(pet.id)} 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-8 rounded-lg font-bold border-border text-xs gap-1"
+                      >
+                        <Edit className="w-3 h-3" /> Edit
+                      </Button>
+                      <Button 
+                        type="button" 
+                        onClick={() => handleDeletePet(pet.id)} 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 rounded-lg font-bold text-reef hover:bg-reef/10 text-xs gap-1"
+                      >
+                        <Trash2 className="w-3 h-3" /> Remove
+                      </Button>
                     </div>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Button 
-                    type="button" 
-                    onClick={() => handleEditPet(pet.id)} 
-                    variant="outline" 
-                    size="sm" 
-                    className="h-8 rounded-lg font-bold border-border text-xs gap-1"
-                  >
-                    <Edit className="w-3 h-3" /> Edit
-                  </Button>
-                  <Button 
-                    type="button" 
-                    onClick={() => handleDeletePet(pet.id)} 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 rounded-lg font-bold text-reef hover:bg-reef/10 text-xs gap-1"
-                  >
-                    <Trash2 className="w-3 h-3" /> Remove
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+          
+          <TabsContent value="products" className="space-y-4">
+            {myProducts.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No products listed yet.</p>
+                <Link to="/products/create">
+                  <Button variant="link" className="text-reef mt-2">Add a product</Button>
+                </Link>
+              </div>
+            ) : (
+              myProducts.map((product) => (
+                <Card key={product.id} className="border-border shadow-sm rounded-2xl overflow-hidden hover:shadow-md transition-shadow"> 
+                  <CardContent className="p-4 flex items-center gap-6">
+                    <div className="w-24 h-24 rounded-xl overflow-hidden bg-muted shrink-0">
+                      <img 
+                        src={product.primary_image ? `http://localhost:5000${product.primary_image}` : `https://placehold.co/200x200`} 
+                        className="w-full h-full object-cover" 
+                        alt={product.name} 
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-extrabold text-ocean text-lg">{product.name}</h4>
+                          <p className="text-sm text-muted-foreground">{product.category} • ${product.price}</p>
+                        </div>
+                        <Badge className={product.stock_quantity > 0 ? "bg-success/10 text-success border-none" : "bg-red-500/10 text-red-500 border-none"}>
+                          {product.stock_quantity > 0 ? `In Stock (${product.stock_quantity})` : 'Out of Stock'}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-6 mt-4">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground font-bold uppercase tracking-widest">
+                          <Eye className="w-3 h-3" /> {product.view_count || 0} Views
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground font-bold uppercase tracking-widest">
+                          <ShoppingBag className="w-3 h-3" /> {product.purchase_count || 0} Sold
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Button 
+                        type="button" 
+                        onClick={() => handleEditProduct(product.id)} 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-8 rounded-lg font-bold border-border text-xs gap-1"
+                      >
+                        <Edit className="w-3 h-3" /> Edit
+                      </Button>
+                      <Button 
+                        type="button" 
+                        onClick={() => handleDeleteProduct(product.id)} 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 rounded-lg font-bold text-reef hover:bg-reef/10 text-xs gap-1"
+                      >
+                        <Trash2 className="w-3 h-3" /> Remove
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     );
   };
+
+  const renderBuyerDashboard = () => (
+    <div className="grid gap-8">
+      <div className="bg-gradient-to-r from-ocean to-reef rounded-2xl p-8 text-white">
+        <h2 className="text-2xl font-bold">Welcome back, {user?.name}!</h2>
+        <p className="text-white/80 mt-2">Track your orders and manage your favorites.</p>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="border-border shadow-sm rounded-2xl">
+          <CardContent className="p-6 text-center">
+            <Package className="w-8 h-8 text-reef mx-auto mb-2" />
+            <p className="text-2xl font-bold text-ocean">0</p>
+            <p className="text-sm text-muted-foreground">Orders</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border shadow-sm rounded-2xl">
+          <CardContent className="p-6 text-center">
+            <Heart className="w-8 h-8 text-reef mx-auto mb-2" />
+            <p className="text-2xl font-bold text-ocean">0</p>
+            <p className="text-sm text-muted-foreground">Favorites</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border shadow-sm rounded-2xl">
+          <CardContent className="p-6 text-center">
+            <ShoppingBag className="w-8 h-8 text-reef mx-auto mb-2" />
+            <p className="text-2xl font-bold text-ocean">0</p>
+            <p className="text-sm text-muted-foreground">Items Purchased</p>
+          </CardContent>
+        </Card>
+      </div>
+      
+      <Card className="border-border shadow-sm rounded-2xl">
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-ocean">Recent Orders</CardTitle>
+          <CardDescription>Your latest purchases</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-30" />
+            <p className="text-muted-foreground">No orders yet</p>
+            <Button asChild className="mt-4 bg-reef hover:bg-reef/90 text-white">
+              <Link to="/products">Start Shopping</Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <Card className="border-border shadow-sm rounded-2xl">
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-ocean">Your Favorites</CardTitle>
+          <CardDescription>Pets and products you've saved</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <Heart className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-30" />
+            <p className="text-muted-foreground">No favorites yet</p>
+            <Button asChild className="mt-4 bg-reef hover:bg-reef/90 text-white">
+              <Link to="/products">Browse Products</Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-foam">
@@ -362,38 +559,8 @@ const Dashboard: React.FC = () => {
 
             {activeView === 'overview' && renderOverview()}
             {activeView === 'listings' && renderMyListings()}
-            {activeView === 'buyer' && (
-               <div className="grid gap-8">
-                  <h2 className="text-2xl font-extrabold text-ocean">Purchase History</h2>
-                  <div className="bg-white rounded-3xl border border-border overflow-hidden shadow-sm">
-                     <table className="w-full text-left">
-                        <thead className="bg-foam border-b border-border">
-                           <tr>
-                              <th className="px-6 py-4 text-xs font-extrabold text-muted-foreground uppercase tracking-widest">Order ID</th>
-                              <th className="px-6 py-4 text-xs font-extrabold text-muted-foreground uppercase tracking-widest">Product</th>
-                              <th className="px-6 py-4 text-xs font-extrabold text-muted-foreground uppercase tracking-widest">Date</th>
-                              <th className="px-6 py-4 text-xs font-extrabold text-muted-foreground uppercase tracking-widest">Price</th>
-                              <th className="px-6 py-4 text-xs font-extrabold text-muted-foreground uppercase tracking-widest">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                           {[1,2,3].map(i => (
-                              <tr key={i} className="hover:bg-foam/50 transition-colors">
-                                 <td className="px-6 py-4 font-bold text-ocean">#ORD-{1024 + i}</td>
-                                 <td className="px-6 py-4 text-sm text-muted-foreground">Premium Pet Supply {i}</td>       
-                                 <td className="px-6 py-4 text-sm text-muted-foreground">Mar {12-i}, 2026</td>
-                                 <td className="px-6 py-4 font-bold text-ocean">${45 + i*10}.99</td>
-                                 <td className="px-6 py-4">
-                                    <Badge className="bg-success/10 text-success border-none">Delivered</Badge>
-                                  </td>
-                               </tr>
-                           ))}
-                        </tbody>
-                      </table>
-                  </div>
-               </div>
-            )}
-            {['favorites', 'settings', 'seller', 'analytics'].includes(activeView) && (
+            {activeView === 'buyer' && renderBuyerDashboard()}
+            {['favorites', 'settings', 'seller', 'analytics', 'messages'].includes(activeView) && (
               <div className="py-20 text-center bg-white rounded-3xl border border-border border-dashed space-y-4">        
                 <BarChart3 className="w-16 h-16 text-muted-foreground mx-auto opacity-10" />
                 <h3 className="text-2xl font-bold text-ocean">{activeView.charAt(0).toUpperCase() + activeView.slice(1)} view is coming soon</h3>
