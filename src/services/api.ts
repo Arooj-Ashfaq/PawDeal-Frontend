@@ -158,41 +158,60 @@ export const messages = {
   },
   
   sendMessage: async (token: string, conversationId: string, content: string) => {
-    return apiCall(`/messages/conversations/${conversationId}/send`, {
+    // First, get the conversation to find the receiver_id
+    const conversation: any = await apiCall(`/messages/conversations/${conversationId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    
+    const receiverId = conversation.other_participant_id || conversation.data?.other_participant_id;
+    
+    if (!receiverId) {
+      throw new Error('Could not determine receiver');
+    }
+    
+    return apiCall(`/messages/conversations/${conversationId}/messages`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ 
+        receiver_id: receiverId,
+        message_content: content 
+      }),
     });
   },
   
   createConversation: async (token: string, receiverId: string, initialMessage: string, relatedPetId?: string, relatedProductId?: string) => {
-    return apiCall('/messages/conversations/create', {
+    const body: any = {
+      receiver_id: receiverId,
+      initial_message: initialMessage
+    };
+    if (relatedPetId) {
+      body.related_pet_id = relatedPetId;
+    }
+    if (relatedProductId) {
+      body.related_product_id = relatedProductId;
+    }
+    return apiCall('/messages/conversations', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        receiver_id: receiverId,
-        initial_message: initialMessage,
-        related_pet_id: relatedPetId,
-        related_product_id: relatedProductId,
-      }),
+      body: JSON.stringify(body),
     });
   },
   
   markAsRead: async (token: string, conversationId: string) => {
     return apiCall(`/messages/conversations/${conversationId}/read`, {
-      method: 'POST',
+      method: 'PATCH',
       headers: { Authorization: `Bearer ${token}` },
     });
   },
   
   getUnreadCount: async (token: string) => {
-    return apiCall('/messages/unread', {
+    return apiCall('/messages/conversations/unread', {
       headers: { Authorization: `Bearer ${token}` },
     });
   },
 };
 
-// Favorites endpoints - CORRECTED URLS
+// Favorites endpoints
 export const favorites = {
   getAll: async (token: string) => {
     return apiCall('/favorites', {
@@ -215,7 +234,7 @@ export const favorites = {
     const response: any = await apiCall(`/favorites/check/pet/${petId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    return { is_favorite: response?.is_favorited || false };
+    return { is_favorite: response.is_favorited };
   },
 };
 

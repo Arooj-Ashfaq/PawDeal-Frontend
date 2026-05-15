@@ -48,13 +48,11 @@ const Dashboard: React.FC = () => {
       const token = localStorage.getItem('pawdeal_token');
       if (!token) return;
       
-      // Fetch pets
       const petsResponse: any = await pets.getAll();
       const allPets = petsResponse.data || petsResponse.pets || [];
       const userPets = allPets.filter((p: any) => p.seller_id === user?.id);
       setMyPets(userPets);
       
-      // Fetch products
       const productsResponse: any = await products.getAll();
       const allProducts = productsResponse.data || productsResponse.products || [];
       const userProducts = allProducts.filter((p: any) => p.seller_id === user?.id);
@@ -420,71 +418,6 @@ const Dashboard: React.FC = () => {
     );
   };
 
-  const renderBuyerDashboard = () => (
-    <div className="grid gap-8">
-      <div className="bg-gradient-to-r from-ocean to-reef rounded-2xl p-8 text-white">
-        <h2 className="text-2xl font-bold">Welcome back, {user?.name}!</h2>
-        <p className="text-white/80 mt-2">Track your orders and manage your favorites.</p>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="border-border shadow-sm rounded-2xl">
-          <CardContent className="p-6 text-center">
-            <Package className="w-8 h-8 text-reef mx-auto mb-2" />
-            <p className="text-2xl font-bold text-ocean">0</p>
-            <p className="text-sm text-muted-foreground">Orders</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border shadow-sm rounded-2xl">
-          <CardContent className="p-6 text-center">
-            <Heart className="w-8 h-8 text-reef mx-auto mb-2" />
-            <p className="text-2xl font-bold text-ocean">0</p>
-            <p className="text-sm text-muted-foreground">Favorites</p>
-          </CardContent>
-        </Card>
-        <Card className="border-border shadow-sm rounded-2xl">
-          <CardContent className="p-6 text-center">
-            <ShoppingBag className="w-8 h-8 text-reef mx-auto mb-2" />
-            <p className="text-2xl font-bold text-ocean">0</p>
-            <p className="text-sm text-muted-foreground">Items Purchased</p>
-          </CardContent>
-        </Card>
-      </div>
-      
-      <Card className="border-border shadow-sm rounded-2xl">
-        <CardHeader>
-          <CardTitle className="text-xl font-bold text-ocean">Recent Orders</CardTitle>
-          <CardDescription>Your latest purchases</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8">
-            <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-30" />
-            <p className="text-muted-foreground">No orders yet</p>
-            <Button asChild className="mt-4 bg-reef hover:bg-reef/90 text-white">
-              <Link to="/products">Start Shopping</Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-      
-      <Card className="border-border shadow-sm rounded-2xl">
-        <CardHeader>
-          <CardTitle className="text-xl font-bold text-ocean">Your Favorites</CardTitle>
-          <CardDescription>Pets and products you've saved</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8">
-            <Heart className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-30" />
-            <p className="text-muted-foreground">No favorites yet</p>
-            <Button asChild className="mt-4 bg-reef hover:bg-reef/90 text-white">
-              <Link to="/products">Browse Products</Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-foam">
       <div className="container px-4 py-8">
@@ -559,7 +492,37 @@ const Dashboard: React.FC = () => {
 
             {activeView === 'overview' && renderOverview()}
             {activeView === 'listings' && renderMyListings()}
-            {activeView === 'buyer' && renderBuyerDashboard()}
+            {activeView === 'buyer' && (
+              <div className="grid gap-8">
+                <h2 className="text-2xl font-extrabold text-ocean">Purchase History</h2>
+                <div className="bg-white rounded-3xl border border-border overflow-hidden shadow-sm">
+                  <table className="w-full text-left">
+                    <thead className="bg-foam border-b border-border">
+                      <tr>
+                        <th className="px-6 py-4 text-xs font-extrabold text-muted-foreground uppercase tracking-widest">Order ID</th>
+                        <th className="px-6 py-4 text-xs font-extrabold text-muted-foreground uppercase tracking-widest">Product</th>
+                        <th className="px-6 py-4 text-xs font-extrabold text-muted-foreground uppercase tracking-widest">Date</th>
+                        <th className="px-6 py-4 text-xs font-extrabold text-muted-foreground uppercase tracking-widest">Price</th>
+                        <th className="px-6 py-4 text-xs font-extrabold text-muted-foreground uppercase tracking-widest">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {[1,2,3].map(i => (
+                        <tr key={i} className="hover:bg-foam/50 transition-colors">
+                          <td className="px-6 py-4 font-bold text-ocean">#ORD-{1024 + i}</td>
+                          <td className="px-6 py-4 text-sm text-muted-foreground">Premium Pet Supply {i}</td>       
+                          <td className="px-6 py-4 text-sm text-muted-foreground">Mar {12-i}, 2026</td>
+                          <td className="px-6 py-4 font-bold text-ocean">${45 + i*10}.99</td>
+                          <td className="px-6 py-4">
+                            <Badge className="bg-success/10 text-success border-none">Delivered</Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
             {['favorites', 'settings', 'seller', 'analytics', 'messages'].includes(activeView) && (
               <div className="py-20 text-center bg-white rounded-3xl border border-border border-dashed space-y-4">        
                 <BarChart3 className="w-16 h-16 text-muted-foreground mx-auto opacity-10" />

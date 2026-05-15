@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSocket } from '@/contexts/SocketContext';
-import { messages } from '@/services/api';
 import { 
   Search, Send, Phone, Video, Info, 
   ChevronLeft, MoreVertical, Trash2, 
   Flag, Ban, Smile, Paperclip, CheckCheck,
-  Loader2
+  Loader2, AlertTriangle, X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,75 +21,97 @@ interface Message {
   id: string;
   sender_id: string;
   receiver_id: string;
-  content: string;
+  message_content: string;
   created_at: string;
   is_read: boolean;
-  sender?: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    profile_image_url: string;
-  };
 }
 
 interface Conversation {
   id: string;
-  other_user: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    profile_image_url: string;
-    online?: boolean;
-  };
-  last_message: {
-    content: string;
-    created_at: string;
-    is_read: boolean;
-  };
+  other_participant_id: string;
+  other_participant_name: string;
+  other_participant_image: string | null;
+  last_message: string;
+  last_message_time: string;
   unread_count: number;
+  related_pet_id?: string;
+  related_product_id?: string;
 }
 
 const Messages: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const { id: conversationId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { socket, isConnected, sendMessage: sendSocketMessage, onNewMessage } = useSocket();
+  const { socket, isConnected, onNewMessage } = useSocket();
   
   const [messageText, setMessageText] = useState('');
   const [messagesList, setMessagesList] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const token = localStorage.getItem('pawdeal_token');
 
   // Fetch conversations
-  const fetchConversations = async () => {
-  if (!token) return;
-  try {
-    const data: any = await messages.getConversations(token);
-    const conversationsList = data.conversations || data.data || [];
-    setConversations(conversationsList);
-  } catch (error: any) {
-    console.error('Failed to fetch conversations:', error);
-    toast.error(error.message || 'Failed to load conversations');
-  }
-};
+  const fetchConversations = useCallback(async () => {
+    if (!token) return;
+    try {
+      const response = await fetch('http://localhost:5000/api/messages/conversations', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      const conversationsList = data.data || data.conversations || [];
+      setConversations(conversationsList);
+    } catch (error: any) {
+      console.error('Failed to fetch conversations:', error);
+    }
+  }, [token]);
 
   // Fetch messages for current conversation
-  const fetchMessages = async () => {
-  if (!token || !conversationId) return;
-  try {
-    const data: any = await messages.getConversation(token, conversationId);
-    const messagesData = data.messages?.data || data.data || data.messages || [];
-    setMessagesList(Array.isArray(messagesData) ? messagesData : []);
-  } catch (error: any) {
-    console.error('Failed to fetch messages:', error);
-    toast.error(error.message || 'Failed to load messages');
-  } finally {
-    setLoading(false);
-  }
-};
+  const fetchMessages = useCallback(async () => {
+    if (!token || !conversationId) return;
+    try {
+      const response = await fetch(`http://localhost:5000/api/messages/conversations/${conversationId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      const messagesData = data.messages || [];
+      setMessagesList(Array.isArray(messagesData) ? messagesData : []);
+    } catch (error: any) {
+      console.error('Failed to fetch messages:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [token, conversationId]);
+
+  // Delete conversation
+  const deleteConversation = async () => {
+    if (!conversationId || !token) return;
+    
+    setDeleting(true);
+    setShowDeleteModal(false);
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/messages/conversations/${conversationId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        toast.success('Conversation deleted successfully');
+        navigate('/messages');
+        fetchConversations();
+      } else {
+        throw new Error('Failed to delete');
+      }
+    } catch (error) {
+      toast.error('Failed to delete conversation');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Load initial data
   useEffect(() => {
@@ -102,32 +123,23 @@ const Messages: React.FC = () => {
         setLoading(false);
       }
     }
-  }, [user, authLoading, conversationId, token]);
+  }, [user, authLoading, conversationId, token, fetchConversations, fetchMessages]);
 
   // Listen for new messages via socket
   useEffect(() => {
     if (socket && isConnected) {
-      onNewMessage((newMessage: any) => {
-        console.log('New message received:', newMessage);
-        
-        // Add to messages list if it's for current conversation
+      const handleNewMessage = (newMessage: any) => {
         if (newMessage.conversationId === conversationId) {
           const messageData = newMessage.message || newMessage;
           setMessagesList(prev => [...prev, messageData]);
-          
-          // Mark as read
-          if (token && conversationId) {
-            messages.markAsRead(token, conversationId);
-          }
         }
-        
-        // Update conversation list
         fetchConversations();
-        
         toast.info('New message received');
-      });
+      };
+      
+      onNewMessage(handleNewMessage);
     }
-  }, [socket, isConnected, onNewMessage, conversationId, token]);
+  }, [socket, isConnected, onNewMessage, conversationId, fetchConversations]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -138,42 +150,76 @@ const Messages: React.FC = () => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!messageText.trim()) return;
-    if (!conversationId) {
-      toast.error('Please select a conversation');
+    
+    const currentMessage = messageText.trim();
+    if (!currentMessage) {
+      toast.error('Please enter a message');
       return;
     }
-    if (!isConnected) {
-      toast.error('Not connected to chat server');
+    if (!conversationId || !token) return;
+
+    const currentConv = conversations.find(c => c.id === conversationId);
+    const receiverId = currentConv?.other_participant_id;
+    
+    if (!receiverId) {
+      toast.error('Could not identify receiver');
       return;
     }
-    if (!token) return;
 
     setSending(true);
     
     try {
-      // Send via API
-      await messages.sendMessage(token, conversationId, messageText);
+      const response = await fetch(`http://localhost:5000/api/messages/conversations/${conversationId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          receiver_id: receiverId,
+          message_content: currentMessage
+        })
+      });
       
-      // Send via socket for real-time
-      sendSocketMessage(conversationId, messageText);
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
       
       setMessageText('');
-      
-      // Refresh messages
       await fetchMessages();
       
+      setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      }, 100);
+      
     } catch (error: any) {
-      console.error('Failed to send message:', error);
-      toast.error(error.message || 'Failed to send message');
+      toast.error('Failed to send message');
     } finally {
       setSending(false);
     }
   };
 
+  // Authenticate socket when connected
+  useEffect(() => {
+    if (socket && isConnected && user) {
+      socket.emit('authenticate', user.id);
+    }
+  }, [socket, isConnected, user]);
+
+  // Join conversation room
+  useEffect(() => {
+    if (socket && isConnected && conversationId) {
+      socket.emit('join_conversation', conversationId);
+      return () => {
+        socket.emit('leave_conversation', conversationId);
+      };
+    }
+  }, [socket, isConnected, conversationId]);
+
   const currentConversation = conversations.find(c => c.id === conversationId);
   
-  // Format time
   const formatTime = (timestamp: string) => {
     if (!timestamp) return '';
     const date = new Date(timestamp);
@@ -204,6 +250,51 @@ const Messages: React.FC = () => {
 
   return (
     <div className="bg-foam h-[calc(100vh-64px)] overflow-hidden">
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-red-500" />
+                </div>
+                <h3 className="text-xl font-bold text-ocean">Delete Conversation</h3>
+              </div>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="text-muted-foreground hover:text-ocean transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <p className="text-muted-foreground mb-6">
+              Are you sure you want to delete this conversation? This action cannot be undone and all messages will be permanently removed.
+            </p>
+            
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 h-11 rounded-xl"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={deleteConversation}
+                disabled={deleting}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white h-11 rounded-xl"
+              >
+                {deleting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Delete Conversation'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="container h-full p-4 lg:p-8">
         <div className="bg-white rounded-[2rem] shadow-2xl h-full flex overflow-hidden border border-border">
 
@@ -234,28 +325,21 @@ const Messages: React.FC = () => {
                     to={`/messages/${conv.id}`}
                     className={`flex items-center gap-4 p-4 rounded-2xl transition-all ${conversationId === conv.id ? "bg-ocean text-white shadow-lg" : "hover:bg-foam"}`}
                   >
-                    <div className="relative shrink-0">
-                      <img 
-                        src={conv.other_user?.profile_image_url || `https://i.pravatar.cc/100?u=${conv.other_user?.id}`} 
-                        className="w-14 h-14 rounded-2xl object-cover" 
-                        alt={`${conv.other_user?.first_name || ''} ${conv.other_user?.last_name || ''}`} 
-                      />
-                      {conv.other_user?.online && (
-                        <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-success border-4 border-white rounded-full"></span>
-                      )}
+                    <div className="relative shrink-0 w-14 h-14 rounded-2xl bg-ocean flex items-center justify-center">
+                      <span className="text-white text-xl font-bold">
+                        {conv.other_participant_name?.charAt(0).toUpperCase() || 'U'}
+                      </span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-center mb-1">
-                        <h4 className="font-extrabold truncate">
-                          {conv.other_user?.first_name || 'User'} {conv.other_user?.last_name || ''}
-                        </h4>
+                        <h4 className="font-extrabold truncate">{conv.other_participant_name || 'User'}</h4>
                         <span className={`text-[10px] font-bold ${conversationId === conv.id ? "text-white/60" : "text-muted-foreground"}`}>
-                          {conv.last_message?.created_at ? formatTime(conv.last_message.created_at) : ''}
+                          {conv.last_message_time ? formatTime(conv.last_message_time) : ''}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <p className={`text-sm truncate ${conversationId === conv.id ? "text-white/60" : "text-muted-foreground"} ${conv.unread_count > 0 ? "font-bold text-ocean" : ""}`}>
-                          {conv.last_message?.content || 'No messages yet'}
+                          {conv.last_message || 'No messages yet'}
                         </p>
                         {conv.unread_count > 0 && (
                           <Badge className="bg-reef text-white h-5 min-w-5 p-0 flex items-center justify-center rounded-full">
@@ -287,23 +371,15 @@ const Messages: React.FC = () => {
                     <Button variant="ghost" size="icon" onClick={() => navigate('/messages')} className="lg:hidden">
                       <ChevronLeft className="w-6 h-6" />
                     </Button>
-                    <div className="relative">
-                      <img 
-                        src={currentConversation.other_user?.profile_image_url || `https://i.pravatar.cc/100?u=${currentConversation.other_user?.id}`} 
-                        className="w-12 h-12 rounded-xl object-cover" 
-                        alt={`${currentConversation.other_user?.first_name || ''} ${currentConversation.other_user?.last_name || ''}`} 
-                      />
-                      {currentConversation.other_user?.online && (
-                        <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-success border-2 border-white rounded-full"></span>
-                      )}
+                    <div className="relative w-12 h-12 rounded-xl bg-ocean flex items-center justify-center">
+                      <span className="text-white text-lg font-bold">
+                        {currentConversation.other_participant_name?.charAt(0).toUpperCase() || 'U'}
+                      </span>
                     </div>
                     <div>
-                      <h3 className="font-extrabold text-ocean leading-tight">
-                        {currentConversation.other_user?.first_name || 'User'} {currentConversation.other_user?.last_name || ''}
-                      </h3>
+                      <h3 className="font-extrabold text-ocean leading-tight">{currentConversation.other_participant_name || 'User'}</h3>
                       <p className="text-[10px] uppercase font-bold text-success tracking-widest">
-                        {currentConversation.other_user?.online ? 'Online' : 'Offline'}
-                        {isConnected && ' • Connected'}
+                        {isConnected ? 'Connected' : 'Offline'}
                       </p>
                     </div>
                   </div>
@@ -324,7 +400,12 @@ const Messages: React.FC = () => {
                         <DropdownMenuItem className="gap-2"><Info className="w-4 h-4" /> View Profile</DropdownMenuItem>     
                         <DropdownMenuItem className="gap-2 text-reef"><Ban className="w-4 h-4" /> Block User</DropdownMenuItem>
                         <DropdownMenuItem className="gap-2 text-reef"><Flag className="w-4 h-4" /> Report User</DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2 text-destructive"><Trash2 className="w-4 h-4" /> Delete Chat</DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="gap-2 text-destructive" 
+                          onClick={() => setShowDeleteModal(true)}
+                        >
+                          <Trash2 className="w-4 h-4" /> Delete Chat
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -337,23 +418,27 @@ const Messages: React.FC = () => {
                       <p className="text-muted-foreground">No messages yet. Say hello!</p>
                     </div>
                   ) : (
-                    messagesList.map((msg) => (
-                      <div key={msg.id} className={`flex ${msg.sender_id === user.id ? "justify-end" : "justify-start"}`}>
-                        <div className={`max-w-[80%] space-y-1 ${msg.sender_id === user.id ? "items-end" : "items-start"}`}>
-                          <div className={`p-4 rounded-[1.5rem] shadow-sm text-sm font-medium ${msg.sender_id === user.id ? "bg-ocean text-white rounded-tr-none" : "bg-white text-ocean rounded-tl-none border border-border"}`}>
-                            {msg.content}
-                          </div>
-                          <div className="flex items-center gap-2 px-1">
-                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                              {formatTime(msg.created_at)}
-                            </span>
-                            {msg.sender_id === user.id && (
-                              <CheckCheck className={`w-3 h-3 ${msg.is_read ? "text-tropical" : "text-muted-foreground"}`} />
-                            )}
+                    messagesList.map((msg) => {
+                      const messageContent = msg.message_content || '';
+                      const isOwnMessage = msg.sender_id === user.id;
+                      return (
+                        <div key={msg.id} className={`flex ${isOwnMessage ? "justify-end" : "justify-start"}`}>
+                          <div className={`max-w-[80%] space-y-1 ${isOwnMessage ? "items-end" : "items-start"}`}>
+                            <div className={`p-4 rounded-[1.5rem] shadow-sm text-sm font-medium ${isOwnMessage ? "bg-ocean text-white rounded-tr-none" : "bg-white text-ocean rounded-tl-none border border-border"}`}>
+                              {messageContent}
+                            </div>
+                            <div className="flex items-center gap-2 px-1">
+                              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                {formatTime(msg.created_at)}
+                              </span>
+                              {isOwnMessage && (
+                                <CheckCheck className={`w-3 h-3 ${msg.is_read ? "text-tropical" : "text-muted-foreground"}`} />
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
 
@@ -365,11 +450,14 @@ const Messages: React.FC = () => {
                     </Button>
                     <div className="flex-1 relative">
                       <Input
+                        id="message-input"
+                        name="message"
                         placeholder={isConnected ? "Type a message..." : "Connecting..."}
                         className="h-14 bg-foam border-none rounded-2xl pl-6 pr-12 text-lg focus-visible:ring-reef"        
                         value={messageText}
                         onChange={(e) => setMessageText(e.target.value)}
                         disabled={!isConnected}
+                        autoComplete="off"
                       />
                       <Button type="button" variant="ghost" size="icon" className="absolute right-2 top-2 rounded-full text-muted-foreground">
                         <Smile className="w-6 h-6" />

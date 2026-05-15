@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { pets } from '@/services/api';
+import { pets, messages } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -128,13 +128,37 @@ const PetDetail: React.FC = () => {
     setTimeout(() => setIsAdded(false), 2000);
   };
 
-  const handleMessageSeller = () => {
+  const handleMessageSeller = async () => {
     if (!user) {
       toast.error('Please login to message the seller');
       navigate('/login?redirect=' + window.location.pathname);
       return;
     }
-    navigate(`/messages/new?seller=${pet?.seller_id}&pet=${pet?.id}`);
+    
+    if (!pet) return;
+    
+    try {
+      const token = localStorage.getItem('pawdeal_token');
+      if (!token) return;
+      
+      const response: any = await messages.createConversation(
+        token,
+        pet.seller_id,
+        `Hi, I'm interested in your pet "${pet.name}". Is it still available?`,
+        pet.id
+      );
+      
+      const conversationId = response.conversation?.id || response.id;
+      if (conversationId) {
+        navigate(`/messages/${conversationId}`);
+      } else {
+        navigate('/messages');
+      }
+    } catch (error: any) {
+      console.error('Failed to create conversation:', error);
+      toast.error(error.message || 'Failed to start conversation');
+      navigate('/messages');
+    }
   };
 
   const formatAge = (years: number, months: number) => {
@@ -271,9 +295,9 @@ const PetDetail: React.FC = () => {
               </div>
               <Button 
                 onClick={handleAddToCart} 
-                className={`w-full h-12 gap-2 transition-all ${isAdded ? 'text-reef border-reef bg-white hover:bg-reef/10' : 'bg-reef hover:bg-reef/90 text-white'}`}
+                className={`w-full h-12 gap-2 transition-all ${isAdded ? 'bg-sunlight hover:bg-sunlight/80 text-white' : 'bg-reef hover:bg-reef/90 text-white'}`}
               >
-                {isAdded ? <Check className="w-5 h-5 text-reef" /> : <ShoppingBag className="w-5 h-5" />}
+                {isAdded ? <Check className="w-5 h-5" /> : <ShoppingBag className="w-5 h-5" />}
                 {isAdded ? 'Added to Cart!' : 'Add to Cart'}
               </Button>
             </div>

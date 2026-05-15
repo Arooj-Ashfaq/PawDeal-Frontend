@@ -57,11 +57,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string, phone: string) => {
     try {
+      // Ensure last_name is not empty - validation requires it
+      const finalLastName = lastName && lastName.trim() !== '' ? lastName : 'User';
+      const finalFirstName = firstName && firstName.trim() !== '' ? firstName : 'User';
+      
       const response = await auth.register({ 
         email, 
         password, 
-        first_name: firstName,
-        last_name: lastName,
+        first_name: finalFirstName,
+        last_name: finalLastName,
         phone: phone || null
       });
       
