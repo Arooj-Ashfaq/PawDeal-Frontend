@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { pets, messages } from '@/services/api';
+import { pets, messages, favorites } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -54,6 +54,7 @@ const PetDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string>('');
   const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
 
@@ -63,21 +64,41 @@ const PetDetail: React.FC = () => {
     }
   }, [id]);
 
+  useEffect(() => {
+    if (pet && user) {
+      checkFavoriteStatus();
+    }
+  }, [pet, user]);
+
+  // Fixed: Handle image URLs from backend
   const getImageUrl = (url: string) => {
     if (!url) return '';
-    if (url.startsWith('http')) return url;
-    const cleanPath = url.replace(/\\/g, '/');
-    const filename = cleanPath.split('/').pop();
+    
+    // If it's already a full URL, return as is
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    
+    // If it starts with /uploads, add the base URL
+    if (url.startsWith('/uploads')) {
+      return `http://localhost:5000${url}`;
+    }
+    
+    // If it's just a filename, construct the path
+    const filename = url.split('/').pop();
     return `http://localhost:5000/uploads/pets/${filename}`;
   };
 
+  // Fixed: Correctly parse the API response which has { success: true, pet: {...} }
   const fetchPet = async () => {
     setLoading(true);
     try {
       const response: any = await pets.getById(id!);
+      // The pet data is directly under the 'pet' key
       const petData = response.pet || response.data || response;
       setPet(petData);
       
+      // Set the selected image
       if (petData.images && petData.images.length > 0) {
         const primary = petData.images.find((img: any) => img.is_primary === 1);
         setSelectedImage(primary ? primary.image_url : petData.images[0].image_url);
@@ -89,6 +110,49 @@ const PetDetail: React.FC = () => {
       toast.error(error.message || 'Failed to load pet details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkFavoriteStatus = async () => {
+    if (!user || !pet) return;
+    try {
+      const token = localStorage.getItem('pawdeal_token');
+      if (!token) return;
+      const response = await favorites.check(token, pet.id);
+      setIsFavorite(response.is_favorite);
+    } catch (error) {
+      console.error('Check favorite error:', error);
+    }
+  };
+
+  const handleToggleFavorite = async () => {
+    if (!user) {
+      toast.error('Please login to save favorites');
+      navigate('/login?redirect=' + window.location.pathname);
+      return;
+    }
+    
+    if (!pet) return;
+    
+    setFavoriteLoading(true);
+    try {
+      const token = localStorage.getItem('pawdeal_token');
+      if (!token) throw new Error('No token');
+      
+      if (isFavorite) {
+        await favorites.remove(token, pet.id);
+        setIsFavorite(false);
+        toast.success('Removed from favorites');
+      } else {
+        await favorites.add(token, pet.id);
+        setIsFavorite(true);
+        toast.success('Added to favorites');
+      }
+    } catch (error: any) {
+      console.error('Toggle favorite error:', error);
+      toast.error(error.message || 'Failed to update favorites');
+    } finally {
+      setFavoriteLoading(false);
     }
   };
 
@@ -206,6 +270,12 @@ const PetDetail: React.FC = () => {
                   src={mainImageUrl}
                   alt={pet.name}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    // Fallback: try the API endpoint
+                    const target = e.target as HTMLImageElement;
+                    const filename = selectedImage.split('/').pop();
+                    target.src = `http://localhost:5000/api/images/pets/${filename}`;
+                  }}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-foam">
@@ -245,15 +315,8 @@ const PetDetail: React.FC = () => {
                     variant="ghost"
                     size="icon"
                     className={`rounded-full ${isFavorite ? "text-reef" : ""}`}
-                    onClick={() => {
-                      if (!user) {
-                        toast.error('Please login to save favorites');
-                        navigate('/login?redirect=' + window.location.pathname);
-                        return;
-                      }
-                      setIsFavorite(!isFavorite);
-                      toast.success(isFavorite ? 'Removed from favorites' : 'Added to favorites');
-                    }}
+                    onClick={handleToggleFavorite}
+                    disabled={favoriteLoading}
                   >
                     <Heart className={`w-5 h-5 ${isFavorite ? "fill-current text-reef" : ""}`} />
                   </Button>

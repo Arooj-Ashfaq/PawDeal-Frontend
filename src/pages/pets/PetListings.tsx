@@ -35,10 +35,27 @@ const PetListings: React.FC = () => {
   const [sortBy, setSortBy] = useState('created_at');
   const [gender, setGender] = useState('all');
   const [addedItems, setAddedItems] = useState<Set<string>>(new Set());
+  const [favoriteItems, setFavoriteItems] = useState<Set<string>>(new Set());
+  const [favoriteLoading, setFavoriteLoading] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchPets();
   }, [category, search, sortBy, gender]);
+
+  useEffect(() => {
+    if (user && petList.length > 0) {
+      checkFavoriteStatuses();
+    }
+  }, [user, petList]);
+
+  // Fixed: Handle image URLs from backend
+  const getImageUrl = (imagePath: string | null) => {
+    if (!imagePath) return 'https://placehold.co/400x300?text=Pet';
+    if (imagePath.startsWith('http')) return imagePath;
+    if (imagePath.startsWith('/uploads')) return `http://localhost:5000${imagePath}`;
+    const filename = imagePath.split('/').pop();
+    return `http://localhost:5000/uploads/pets/${filename}`;
+  };
 
   const fetchPets = async () => {
     setLoading(true);
@@ -80,7 +97,94 @@ const PetListings: React.FC = () => {
     }
   };
 
-  const addToCart = (pet: Pet) => {
+  // Check favorite status for all pets
+  const checkFavoriteStatuses = async () => {
+    const token = localStorage.getItem('pawdeal_token');
+    if (!token) return;
+    
+    const favoritesSet = new Set<string>();
+    
+    for (const pet of petList) {
+      try {
+        const response = await fetch(`http://localhost:5000/api/favorites/check/pet/${pet.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        if (data.is_favorited) {
+          favoritesSet.add(pet.id);
+        }
+      } catch (error) {
+        console.error('Error checking favorite for pet:', pet.id, error);
+      }
+    }
+    
+    setFavoriteItems(favoritesSet);
+  };
+
+  // Toggle favorite
+  const toggleFavorite = async (e: React.MouseEvent, petId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!user) {
+      toast.error('Please login to save favorites');
+      navigate('/login');
+      return;
+    }
+    
+    const token = localStorage.getItem('pawdeal_token');
+    if (!token) return;
+    
+    // Add to loading set
+    setFavoriteLoading(prev => new Set(prev).add(petId));
+    
+    try {
+      if (favoriteItems.has(petId)) {
+        // Remove from favorites
+        const response = await fetch(`http://localhost:5000/api/favorites/pet/${petId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+          setFavoriteItems(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(petId);
+            return newSet;
+          });
+          toast.success('Removed from favorites');
+        }
+      } else {
+        // Add to favorites
+        const response = await fetch(`http://localhost:5000/api/favorites/pet/${petId}`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` 
+          }
+        });
+        
+        if (response.ok) {
+          setFavoriteItems(prev => new Set(prev).add(petId));
+          toast.success('Added to favorites');
+        }
+      }
+    } catch (error: any) {
+      console.error('Toggle favorite error:', error);
+      toast.error(error.message || 'Failed to update favorites');
+    } finally {
+      setFavoriteLoading(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(petId);
+        return newSet;
+      });
+    }
+  };
+
+  const addToCart = (e: React.MouseEvent, pet: Pet) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (!user) {
       toast.error('Please login to add to cart');
       navigate('/login');
@@ -202,23 +306,26 @@ const PetListings: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {petList.map((pet) => {
               const isAdded = addedItems.has(pet.id);
+              const isFav = favoriteItems.has(pet.id);
+              const isFavLoading = favoriteLoading.has(pet.id);
+              
               return (
                 <Link to={`/pet/${pet.id}`} key={pet.id}>
                   <Card className="group overflow-hidden border-border hover:shadow-xl transition-all duration-300 rounded-2xl">
                     <div className="relative h-48 overflow-hidden bg-foam">
                       <img
-                        src={pet.primary_image ? `http://localhost:5000${pet.primary_image}` : `https://placehold.co/400x300`}
+                        src={getImageUrl(pet.primary_image)}
                         alt={pet.name}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                       />
                       {pet.vaccinated && (
-                        <Badge className="absolute top-3 right-3 bg-green-500 text-white">
+                        <Badge className="absolute top-3 left-3 bg-green-500 text-white border-none">
                           Vaccinated
                         </Badge>
                       )}
                       {pet.status === 'sold' && (
                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                          <Badge className="bg-red-500 text-white">Sold</Badge>
+                          <Badge className="bg-red-500 text-white border-none">Sold</Badge>
                         </div>
                       )}
                     </div>
@@ -237,25 +344,21 @@ const PetListings: React.FC = () => {
                         <span className="text-lg font-bold text-reef">${pet.price}</span>
                         <div className="flex gap-2">
                           <Button
+                            type="button"
                             variant="ghost"
                             size="icon"
-                            className="rounded-full hover:bg-reef/10 hover:text-reef"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              toast.info('Login to add to favorites');
-                            }}
+                            className={`rounded-full transition-all ${isFav ? 'text-reef' : 'hover:text-reef'}`}
+                            onClick={(e) => toggleFavorite(e, pet.id)}
+                            disabled={isFavLoading}
                           >
-                            <Heart className="w-5 h-5" />
+                            <Heart className={`w-5 h-5 ${isFav ? 'fill-current' : ''}`} />
                           </Button>
                           <Button
+                            type="button"
                             variant="ghost"
                             size="icon"
                             className={`rounded-full hover:scale-110 transition-all ${isAdded ? 'bg-green-500 text-white' : 'hover:bg-reef/10 hover:text-reef'}`}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              addToCart(pet);
-                            }}
+                            onClick={(e) => addToCart(e, pet)}
                           >
                             {isAdded ? <Check className="w-5 h-5" /> : <ShoppingBag className="w-5 h-5" />}
                           </Button>

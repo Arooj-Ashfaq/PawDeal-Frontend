@@ -112,11 +112,19 @@ export const PetCard: React.FC<{ pet: any }> = ({ pet }) => {
     setTimeout(() => setIsAdded(false), 2000);
   };
 
+  // FIXED: Image URL handler for /uploads/ paths
   const getImageUrl = () => {
-    if (pet.image) return pet.image;
+    if (pet.image) {
+      if (pet.image.startsWith('http')) return pet.image;
+      if (pet.image.startsWith('/uploads')) return `http://localhost:5000${pet.image}`;
+      const filename = pet.image.split('/').pop();
+      return `http://localhost:5000/uploads/pets/${filename}`;
+    }
     if (pet.primary_image) {
+      if (pet.primary_image.startsWith('http')) return pet.primary_image;
+      if (pet.primary_image.startsWith('/uploads')) return `http://localhost:5000${pet.primary_image}`;
       const filename = pet.primary_image.split('/').pop();
-      return `http://localhost:5000/api/images/pets/${filename}`;
+      return `http://localhost:5000/uploads/pets/${filename}`;
     }
     return 'https://placehold.co/400x400?text=Pet';
   };
@@ -236,10 +244,17 @@ export const ProductCard: React.FC<{ product: any }> = ({ product }) => {
   };
 
   const getImageUrl = () => {
-    if (product.image) return product.image;
+    if (product.image) {
+      if (product.image.startsWith('http')) return product.image;
+      if (product.image.startsWith('/uploads')) return `http://localhost:5000${product.image}`;
+      const filename = product.image.split('/').pop();
+      return `http://localhost:5000/uploads/products/${filename}`;
+    }
     if (product.primary_image) {
+      if (product.primary_image.startsWith('http')) return product.primary_image;
+      if (product.primary_image.startsWith('/uploads')) return `http://localhost:5000${product.primary_image}`;
       const filename = product.primary_image.split('/').pop();
-      return `http://localhost:5000/api/images/products/${filename}`;
+      return `http://localhost:5000/uploads/products/${filename}`;
     }
     return 'https://placehold.co/400x400?text=Product';
   };
