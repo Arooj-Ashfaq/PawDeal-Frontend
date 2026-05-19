@@ -76,7 +76,6 @@ export const PetCard: React.FC<{ pet: any }> = ({ pet }) => {
     
     const priceNum = typeof pet.price === 'number' ? pet.price : parseFloat(pet.price) || 0;
     
-    // Get existing cart
     const existingCart = localStorage.getItem('pawdeal_cart');
     let cart = [];
     
@@ -89,7 +88,6 @@ export const PetCard: React.FC<{ pet: any }> = ({ pet }) => {
       }
     }
     
-    // Check if pet already exists
     const existingIndex = cart.findIndex((item: any) => item.id === pet.id);
     
     if (existingIndex !== -1) {
@@ -100,7 +98,7 @@ export const PetCard: React.FC<{ pet: any }> = ({ pet }) => {
         name: pet.name,
         price: priceNum,
         quantity: 1,
-        image: pet.primary_image || pet.image,
+        image: pet.primary_image,
         category: pet.category,
         type: 'pet'
       });
@@ -112,21 +110,25 @@ export const PetCard: React.FC<{ pet: any }> = ({ pet }) => {
     setTimeout(() => setIsAdded(false), 2000);
   };
 
-  // FIXED: Image URL handler for /uploads/ paths
+  // Fixed: Handle all image URL formats
   const getImageUrl = () => {
-    if (pet.image) {
-      if (pet.image.startsWith('http')) return pet.image;
-      if (pet.image.startsWith('/uploads')) return `http://localhost:5000${pet.image}`;
-      const filename = pet.image.split('/').pop();
-      return `http://localhost:5000/uploads/pets/${filename}`;
+    if (!pet.primary_image) {
+      return 'https://placehold.co/400x400?text=Pet';
     }
-    if (pet.primary_image) {
-      if (pet.primary_image.startsWith('http')) return pet.primary_image;
-      if (pet.primary_image.startsWith('/uploads')) return `http://localhost:5000${pet.primary_image}`;
-      const filename = pet.primary_image.split('/').pop();
-      return `http://localhost:5000/uploads/pets/${filename}`;
+    
+    // If it's already a full URL
+    if (pet.primary_image.startsWith('http')) {
+      return pet.primary_image;
     }
-    return 'https://placehold.co/400x400?text=Pet';
+    
+    // If it starts with /uploads
+    if (pet.primary_image.startsWith('/uploads')) {
+      return `http://localhost:5000${pet.primary_image}`;
+    }
+    
+    // If it's just a filename or other format
+    const filename = pet.primary_image.split('/').pop();
+    return `http://localhost:5000/uploads/pets/${filename}`;
   };
 
   const formatPrice = (price: any) => {
@@ -142,6 +144,10 @@ export const PetCard: React.FC<{ pet: any }> = ({ pet }) => {
             src={getImageUrl()} 
             alt={pet.name}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = 'https://placehold.co/400x400?text=Pet';
+            }}
           />
           <div className="absolute top-4 right-4 z-10 flex gap-2">
             <Button 
@@ -207,7 +213,6 @@ export const ProductCard: React.FC<{ product: any }> = ({ product }) => {
       return;
     }
     
-    // Get existing cart
     const existingCart = localStorage.getItem('pawdeal_cart');
     let cart = [];
     
@@ -220,7 +225,6 @@ export const ProductCard: React.FC<{ product: any }> = ({ product }) => {
       }
     }
     
-    // Check if product already exists
     const existingIndex = cart.findIndex((item: any) => item.id === product.id);
     
     if (existingIndex !== -1) {
@@ -244,19 +248,14 @@ export const ProductCard: React.FC<{ product: any }> = ({ product }) => {
   };
 
   const getImageUrl = () => {
-    if (product.image) {
-      if (product.image.startsWith('http')) return product.image;
-      if (product.image.startsWith('/uploads')) return `http://localhost:5000${product.image}`;
-      const filename = product.image.split('/').pop();
-      return `http://localhost:5000/uploads/products/${filename}`;
-    }
-    if (product.primary_image) {
-      if (product.primary_image.startsWith('http')) return product.primary_image;
-      if (product.primary_image.startsWith('/uploads')) return `http://localhost:5000${product.primary_image}`;
-      const filename = product.primary_image.split('/').pop();
-      return `http://localhost:5000/uploads/products/${filename}`;
-    }
-    return 'https://placehold.co/400x400?text=Product';
+    const imagePath = product.primary_image || product.image;
+    if (!imagePath) return 'https://placehold.co/400x400?text=Product';
+    
+    if (imagePath.startsWith('http')) return imagePath;
+    if (imagePath.startsWith('/uploads')) return `http://localhost:5000${imagePath}`;
+    
+    const filename = imagePath.split('/').pop();
+    return `http://localhost:5000/uploads/products/${filename}`;
   };
 
   return (
@@ -267,6 +266,10 @@ export const ProductCard: React.FC<{ product: any }> = ({ product }) => {
             src={getImageUrl()} 
             alt={product.name}
             className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = 'https://placehold.co/400x400?text=Product';
+            }}
           />
           {product.sale_price && (
              <div className="absolute top-4 left-4">

@@ -27,27 +27,57 @@ const Favorites: React.FC = () => {
     }
   }, [user, authLoading, navigate]);
 
-  // Helper function to fix image URLs
   const fixImageUrl = (imagePath: string) => {
     if (!imagePath) return '';
     if (imagePath.startsWith('http')) return imagePath;
     if (imagePath.startsWith('/uploads')) return `http://localhost:5000${imagePath}`;
-    const filename = imagePath.split('/').pop();
-    return `http://localhost:5000/uploads/pets/${filename}`;
+    return `http://localhost:5000/uploads/pets/${imagePath.split('/').pop()}`;
+  };
+
+  const fetchPetImages = async (petId: string) => {
+    try {
+      const endpoints = [
+        `http://localhost:5000/api/pets/${petId}/images`,
+        `http://localhost:5000/api/images/pets/${petId}`,
+        `http://localhost:5000/api/pets/${petId}`
+      ];
+      
+      for (const endpoint of endpoints) {
+        try {
+          const response = await fetch(endpoint);
+          if (response.ok) {
+            const data = await response.json();
+            
+            if (data.images && data.images.length > 0) {
+              return data.images[0].image_url || data.images[0].url;
+            }
+            if (data.image_url) return data.image_url;
+            if (data.primary_image) return data.primary_image;
+            if (data.pet?.primary_image) return data.pet.primary_image;
+            if (data.data?.primary_image) return data.data.primary_image;
+          }
+        } catch (e) {
+          // Continue to next endpoint
+        }
+      }
+      
+      return 'https://placehold.co/400x400?text=Pet';
+    } catch (error) {
+      return 'https://placehold.co/400x400?text=Pet';
+    }
   };
 
   const fetchFavorites = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('pawdeal_token');
-      if (!token) return;
+      if (!token) {
+        setLoading(false);
+        return;
+      }
       
-      // Get favorites from backend
-      const favResponse: any = await favoritesAPI.getAll(token);
-      console.log('Favorites response:', favResponse);
-      
-      // Backend returns: { success: true, data: [...], counts: {...} }
-      const favoriteItems = favResponse?.data || [];
+      const response: any = await favoritesAPI.getAll(token);
+      const favoriteItems = response?.data || [];
       
       if (favoriteItems.length === 0) {
         setFavoritePets([]);
@@ -55,29 +85,29 @@ const Favorites: React.FC = () => {
         return;
       }
       
-      // The backend already joins the pet data, so we can extract it directly
-      const petsData = favoriteItems
-        .filter((item: any) => item.item_type === 'pet')
-        .map((item: any) => {
-          // Remove favorite metadata and fix image URL
-          const { item_type, favorited_at, ...petData } = item;
-          
-          // Fix the image URL if it exists
-          if (petData.primary_image) {
-            petData.primary_image = fixImageUrl(petData.primary_image);
-          }
-          if (petData.images && Array.isArray(petData.images)) {
-            petData.images = petData.images.map((img: any) => ({
-              ...img,
-              image_url: fixImageUrl(img.image_url)
-            }));
-          }
-          
-          return petData;
-        });
+      const petFavorites = favoriteItems.filter((item: any) => item.item_type === 'pet');
       
-      console.log('Processed pets data:', petsData);
-      setFavoritePets(petsData);
+      const petsWithImages = await Promise.all(
+        petFavorites.map(async (favPet: any) => {
+          try {
+            const petDetailResponse: any = await petsAPI.getById(favPet.id);
+            const fullPet = petDetailResponse.pet || petDetailResponse.data || petDetailResponse;
+            
+            const imageUrl = await fetchPetImages(favPet.id);
+            fullPet.primary_image = fixImageUrl(imageUrl);
+            
+            return fullPet;
+          } catch (err) {
+            console.error('Error fetching pet details:', favPet.id, err);
+            return {
+              ...favPet,
+              primary_image: 'https://placehold.co/400x400?text=No+Image'
+            };
+          }
+        })
+      );
+      
+      setFavoritePets(petsWithImages);
       
     } catch (error: any) {
       console.error('Failed to fetch favorites:', error);
@@ -120,7 +150,7 @@ const Favorites: React.FC = () => {
           <TabsContent value="pets">
             {favoritePets.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                {favoritePets.map(pet => (
+                {favoritePets.map((pet) => (
                   <PetCard key={pet.id} pet={pet} />
                 ))}
               </div>
