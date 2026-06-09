@@ -7,7 +7,7 @@ interface AuthResponse {
     email: string;
     name: string;
     avatar?: string;
-    role: 'buyer' | 'seller' | 'both';
+    role: 'buyer' | 'seller' | 'both' | 'admin';
   };
 }
 
@@ -238,6 +238,139 @@ export const favorites = {
   },
 };
 
+// Admin endpoints
+export const admin = {
+  // Dashboard
+  getReports: async (token: string, period: string = '30d') => {
+    return apiCall(`/admin/reports?period=${period}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  // User Management
+  getUsers: async (token: string, params: any = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return apiCall(`/admin/users?${queryParams}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  getUserDetails: async (token: string, userId: string) => {
+    return apiCall(`/admin/users/${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  updateUserStatus: async (token: string, userId: string, status: string, reason?: string) => {
+    return apiCall(`/admin/users/${userId}/status`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status, reason }),
+    });
+  },
+
+  // Seller Verification
+  getPendingSellers: async (token: string) => {
+    return apiCall('/admin/sellers/pending', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  verifySeller: async (token: string, sellerId: string, status: string, notes?: string) => {
+    return apiCall(`/admin/sellers/${sellerId}/verify`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status, notes }),
+    });
+  },
+
+  // Content Moderation
+  getReportedContent: async (token: string) => {
+    return apiCall('/admin/moderation/reported', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  moderateContent: async (token: string, type: string, id: string, action: string, reason?: string) => {
+    return apiCall(`/admin/moderation/${type}/${id}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action, reason }),
+    });
+  },
+
+  // Platform Settings
+  getSettings: async (token: string) => {
+    return apiCall('/admin/settings', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  updateSettings: async (token: string, settings: any) => {
+    return apiCall('/admin/settings', {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(settings),
+    });
+  },
+
+  // Export Data
+  exportData: async (token: string, type: string, format: string = 'csv') => {
+    window.open(`${API_URL}/admin/export?type=${type}&format=${format}`, '_blank');
+  },
+
+  // Audit Logs
+  getAuditLogs: async (token: string, params: any = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return apiCall(`/admin/audit-logs?${queryParams}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  // System Health
+  getSystemHealth: async (token: string) => {
+    return apiCall('/admin/system/health', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  clearCache: async (token: string) => {
+    return apiCall('/admin/system/clear-cache', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  toggleMaintenance: async (token: string, enabled: boolean, message?: string) => {
+    return apiCall('/admin/system/maintenance', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ enabled, message }),
+    });
+  },
+
+  // Backup Management
+  getBackups: async (token: string) => {
+    return apiCall('/admin/backups', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  createBackup: async (token: string) => {
+    return apiCall('/admin/backups', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+
+  restoreBackup: async (token: string, backupId: string) => {
+    return apiCall(`/admin/backups/${backupId}/restore`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+};
+
 // Export all services
 export default {
   auth,
@@ -246,4 +379,5 @@ export default {
   dashboard,
   messages,
   favorites,
+  admin,
 };

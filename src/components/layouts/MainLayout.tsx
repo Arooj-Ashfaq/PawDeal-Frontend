@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { 
   Menu, Search, ShoppingCart, User, LogOut, 
   Dog, Cat, Fish, Bird, Rabbit, Heart, MessageSquare, 
-  LayoutDashboard, Package
+  LayoutDashboard, Package, Shield
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,9 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Check if user is admin
+  const isAdmin = user?.role === 'admin';
 
   // Get cart count from localStorage directly
   const getCartCount = () => {
@@ -97,6 +100,16 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 {link.name}
               </Link>
             ))}
+            {/* Admin Link - Only visible to admin users */}
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className={`transition-colors hover:text-reef flex items-center gap-1 ${location.pathname.startsWith('/admin') ? 'text-reef font-bold' : ''}`}
+              >
+                <Shield className="w-4 h-4" />
+                Admin
+              </Link>
+            )}
           </nav>
 
           <div className="flex items-center gap-4">
@@ -126,9 +139,25 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                       <div className="flex flex-col space-y-1">
                         <p className="text-sm font-medium leading-none">{user.name}</p>
                         <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                        {isAdmin && (
+                          <p className="text-xs text-reef font-medium mt-1">Administrator</p>
+                        )}
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
+                    
+                    {/* Admin Panel Link in Dropdown */}
+                    {isAdmin && (
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin">
+                            <Shield className="mr-2 h-4 w-4" />
+                            <span>Admin Panel</span>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
                     
                     <DropdownMenuItem asChild>
                       <Link to="/dashboard">
@@ -218,6 +247,16 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                       {link.name}
                     </Link>
                   ))}
+                  {/* Admin Link in Mobile Menu */}
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      className="text-lg font-medium hover:text-reef py-2 border-b border-white/5 flex items-center gap-2"
+                    >
+                      <Shield className="w-5 h-5" />
+                      Admin Panel
+                    </Link>
+                  )}
                   <div className="mt-4">
                     <p className="text-xs uppercase text-white/40 mb-2 font-bold tracking-widest">Categories</p>
                     {petCategories.map((cat) => (

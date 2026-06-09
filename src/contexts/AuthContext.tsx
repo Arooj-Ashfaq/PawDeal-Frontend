@@ -7,6 +7,7 @@ export interface User {
   email: string;
   name: string;
   avatar?: string;
+  role?: 'buyer' | 'seller' | 'both' | 'admin';
 }
 
 interface AuthContextType {
@@ -57,7 +58,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string, phone: string) => {
     try {
-      // Ensure last_name is not empty - validation requires it
       const finalLastName = lastName && lastName.trim() !== '' ? lastName : 'User';
       const finalFirstName = firstName && firstName.trim() !== '' ? firstName : 'User';
       

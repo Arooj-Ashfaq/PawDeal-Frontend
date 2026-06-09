@@ -2,6 +2,7 @@ import React, { lazy, Suspense } from 'react';
 import { Navigate } from 'react-router-dom';
 import MainLayout from '@/components/layouts/MainLayout';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 
 // Lazy load all pages
 const Home = lazy(() => import('@/pages/Home'));
@@ -36,6 +37,17 @@ const FAQ = lazy(() => import('@/pages/foundation/FAQ'));
 const Legal = lazy(() => import('@/pages/foundation/Legal'));
 const NotFound = lazy(() => import('@/pages/NotFound'));
 
+// Admin Pages - Using relative paths
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
+const AdminPets = lazy(() => import('./pages/admin/AdminPets'));
+const AdminProducts = lazy(() => import('./pages/admin/AdminProducts'));
+const AdminOrders = lazy(() => import('./pages/admin/AdminOrders'));
+const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'));
+const AdminModeration = lazy(() => import('./pages/admin/AdminModeration'));
+const AdminSellers = lazy(() => import('./pages/admin/AdminSellers'));
+const AdminReports = lazy(() => import('./pages/admin/AdminReports'));
+
 // Wrapper for layout
 const withLayout = (Component: React.ComponentType<any>) => (
   <MainLayout>
@@ -45,12 +57,33 @@ const withLayout = (Component: React.ComponentType<any>) => (
   </MainLayout>
 );
 
-// Protected route wrapper
+// Protected route wrapper (for regular users)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const token = localStorage.getItem('pawdeal_token');
   const user = localStorage.getItem('pawdeal_user');
   
   if (!token || !user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <>{children}</>;
+};
+
+// Admin route wrapper (requires admin role)
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const token = localStorage.getItem('pawdeal_token');
+  const userStr = localStorage.getItem('pawdeal_user');
+  
+  if (!token || !userStr) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  try {
+    const user = JSON.parse(userStr);
+    if (user.role !== 'admin') {
+      return <Navigate to="/" replace />;
+    }
+  } catch (e) {
     return <Navigate to="/login" replace />;
   }
   
@@ -190,6 +223,88 @@ const routes = [
   { path: '/returns', element: withLayout(() => <Legal type="returns" />) },
   { path: '/seller-guidelines', element: withLayout(() => <Legal type="seller-guidelines" />) },
   { path: '/welfare', element: withLayout(() => <Legal type="welfare" />) },
+  
+  // ========== ADMIN ROUTES ==========
+  { 
+    path: '/admin', 
+    element: (
+      <AdminRoute>
+        {withLayout(AdminDashboard)}
+      </AdminRoute>
+    ) 
+  },
+  { 
+    path: '/admin/dashboard', 
+    element: (
+      <AdminRoute>
+        {withLayout(AdminDashboard)}
+      </AdminRoute>
+    ) 
+  },
+  { 
+    path: '/admin/users', 
+    element: (
+      <AdminRoute>
+        {withLayout(AdminUsers)}
+      </AdminRoute>
+    ) 
+  },
+  { 
+    path: '/admin/pets', 
+    element: (
+      <AdminRoute>
+        {withLayout(AdminPets)}
+      </AdminRoute>
+    ) 
+  },
+  { 
+    path: '/admin/products', 
+    element: (
+      <AdminRoute>
+        {withLayout(AdminProducts)}
+      </AdminRoute>
+    ) 
+  },
+  { 
+    path: '/admin/orders', 
+    element: (
+      <AdminRoute>
+        {withLayout(AdminOrders)}
+      </AdminRoute>
+    ) 
+  },
+  { 
+    path: '/admin/settings', 
+    element: (
+      <AdminRoute>
+        {withLayout(AdminSettings)}
+      </AdminRoute>
+    ) 
+  },
+  { 
+    path: '/admin/moderation', 
+    element: (
+      <AdminRoute>
+        {withLayout(AdminModeration)}
+      </AdminRoute>
+    ) 
+  },
+  { 
+    path: '/admin/sellers', 
+    element: (
+      <AdminRoute>
+        {withLayout(AdminSellers)}
+      </AdminRoute>
+    ) 
+  },
+  { 
+    path: '/admin/reports', 
+    element: (
+      <AdminRoute>
+        {withLayout(AdminReports)}
+      </AdminRoute>
+    ) 
+  },
   
   // 404
   { path: '/404', element: withLayout(NotFound) },
